@@ -7,8 +7,8 @@ import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, s
 
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-// IMPORTANT FIX: We check for the Canvas variable, and if it's missing (running locally), 
-// we fall back to the global `firebaseConfig` object loaded from firebase_config.js.
+// FIX: Check for the Canvas variable, and if it's null (running locally), 
+// fall back to the global `firebaseConfig` object loaded from firebase_config.js using the window object.
 const canvasConfig = typeof __firebase_config !== 'undefined' && __firebase_config !== null ? JSON.parse(__firebase_config) : null;
 const localConfig = typeof window.firebaseConfig !== 'undefined' ? window.firebaseConfig : null;
 
@@ -87,7 +87,7 @@ async function initFirebaseAndApp() {
     setLogLevel('debug');
 
     if (!firebaseConfig) {
-        showModal("Configuration Error", "Firebase configuration is missing. The app cannot initialize storage. Please ensure the environment variables are set.");
+        showModal("Configuration Error", "Firebase configuration is missing. The app cannot initialize storage. Please ensure the environment variables are set or firebase_config.js is correctly loaded.");
         console.error("Firebase config is null or undefined.");
         return;
     }
