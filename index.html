@@ -96,7 +96,7 @@
 </head>
 <body class="p-4 md:p-8">
 
-    <!-- Modal for Messages/Confirmations -->
+    <!-- Modal for Messages/Confirmations (Used for errors, info, non-undoable confirmations) -->
     <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center">
         <div class="bg-[#1a1a1d] card p-6 rounded-xl w-11/12 max-w-sm">
             <h3 id="modal-title" class="text-xl mb-3 text-white font-bold font-sans"></h3>
@@ -107,12 +107,19 @@
         </div>
     </div>
 
+    <!-- Toast Notification Container (New: For non-critical feedback with undo) -->
+    <div id="toast-notification" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 opacity-0 transition-opacity duration-300 z-50 p-3 rounded-xl bg-gray-800 border border-gray-700 shadow-xl max-w-sm flex items-center justify-between space-x-4 pointer-events-none">
+        <p id="toast-message" class="text-sm text-white"></p>
+        <button id="toast-undo-btn" class="text-sm font-semibold text-yellow-400 hover:text-yellow-300 transition-colors" onclick="window.undoAction(this)">UNDO</button>
+    </div>
+
+
     <!-- 0. Ledger Selection Modal (Appears before content) -->
     <div id="ledger-selection-modal" class="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center">
         <div id="selection-content" class="bg-[#1a1a1d] card p-6 rounded-xl w-11/12 max-w-lg text-center">
             <h2 class="text-3xl mb-6 text-white font-bold">Access The Nightingale Ledger</h2>
             
-            <!-- Removed the text next to the spinner as requested -->
+            <!-- Loading Spinner (No text inside, resolves the flicker issue) -->
             <p id="auth-loading" class="text-center text-gray-400 mb-6 flex items-center justify-center space-x-2">
                 <span class="spinner"></span> 
             </p>
@@ -321,6 +328,11 @@
         
         let ledgerCode = null; 
 
+        // Toast-specific state for undo functionality
+        let deletedItem = null;
+        let deletedItemCollection = null;
+        let toastTimeout = null;
+        
         // 🚨 USER'S HARDCODED FIREBASE CONFIGURATION 🚨
         const firebaseConfig = {
             apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc",
@@ -411,6 +423,51 @@
 
             document.getElementById('modal-container').classList.remove('hidden');
         }
+        
+        // New: Toast notification with undo
+        function showToast(message, onUndo) {
+            clearTimeout(toastTimeout);
+            
+            const toast = document.getElementById('toast-notification');
+            const msgElement = document.getElementById('toast-message');
+            const undoBtn = document.getElementById('toast-undo-btn');
+
+            msgElement.textContent = message;
+
+            if (onUndo) {
+                undoBtn.classList.remove('hidden');
+                // The actual undo logic is wrapped in the toast-undo-btn's onclick handler
+                undoBtn.onclick = () => {
+                    onUndo();
+                    // Immediately hide the toast on undo
+                    toast.classList.add('opacity-0');
+                    toast.classList.remove('pointer-events-auto');
+                    clearTimeout(toastTimeout);
+                };
+            } else {
+                undoBtn.classList.add('hidden');
+            }
+
+            // Show the toast
+            toast.classList.remove('opacity-0');
+            toast.classList.add('pointer-events-auto'); // Make it clickable
+
+            // Set timeout to hide
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('opacity-0');
+                toast.classList.remove('pointer-events-auto');
+                deletedItem = null; // Clear state when toast fades
+            }, 5000); // 5 seconds duration
+        }
+        
+        // Global exposure for the undo button's onclick
+        window.undoAction = function(btnElement) {
+            // Check if the element exists and has an onclick function defined by showToast
+            if (btnElement && typeof btnElement.onclick === 'function') {
+                btnElement.onclick(); // Execute the specific undo callback set in showToast
+            }
+        }
+
 
         // NOTE: This function is defined locally in the module scope.
         function handleError(e, customMessage) {
@@ -1137,18 +1194,49 @@
             
             const docRef = doc(db, BASE_PATH, ledgerCode);
             const currentItems = gameState[collectionName];
-            // Filter out the item to be deleted
+            
+            // 1. Store the item and collection for potential undo
+            deletedItem = currentItems.find(item => item.id === itemId);
+            deletedItemCollection = collectionName;
+            
+            if (!deletedItem) {
+                return; // Item not found, do nothing.
+            }
+
+            // 2. Filter out the item for the update
             const updatedItems = currentItems.filter(item => item.id !== itemId);
 
             try {
-                // Use a dynamic property name for the update
+                // 3. Perform the deletion (update)
                 const updatePayload = {};
                 updatePayload[collectionName] = updatedItems;
 
                 await updateDoc(docRef, updatePayload);
-                showModal("Item Removed", `Item removed from ${collectionName}.`);
+                
+                // 4. Define the undo function
+                const onUndo = async () => {
+                     // Re-add the deleted item back into the list
+                     const revertedItems = [...updatedItems, deletedItem]; 
+                     const undoPayload = {};
+                     undoPayload[collectionName] = revertedItems;
+                     
+                     await updateDoc(docRef, undoPayload);
+                     showToast(`${deletedItem.description || deletedItem.title || 'Item'} restored.`, null);
+                     
+                     // Clear global state variables for safety
+                     deletedItem = null; 
+                     deletedItemCollection = null;
+                };
+                
+                // 5. Show the toast notification
+                const itemName = deletedItem.description || deletedItem.title || 'Item';
+                showToast(`${itemName} removed.`, onUndo);
+                
             } catch (e) {
                 handleError(e, `Failed to remove item from ${collectionName}`);
+                // Clear temp state on failure
+                deletedItem = null; 
+                deletedItemCollection = null;
             }
         }
 
