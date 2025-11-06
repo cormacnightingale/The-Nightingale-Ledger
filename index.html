@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Shared Ledger: Habit and Reward Tracker</title>
+    <title>The Nightingale Ledger: Habit and Reward Tracker</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -206,12 +206,25 @@
 
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, getDocs, deleteDoc, query, where, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // setLogLevel('Debug'); // Uncomment to see Firebase logs
+
+        // 🚨 IMPORTANT: When running outside the Canvas environment (e.g., GitHub Pages), 
+        // you MUST replace the content of this object with your actual Firebase project config.
+        // Get this configuration from your Firebase Console > Project Settings > General.
+        const firebaseConfig = {
+        apiKey: "AIzaSyC6fo56hdBEkCgiHJAIqoNwZN7aNIID4xo",
+        authDomain: "nightingaleledger.firebaseapp.com",
+        projectId: "nightingaleledger",
+        storageBucket: "nightingaleledger.firebasestorage.app",
+        messagingSenderId: "1067784978486",
+        appId: "1:1067784978486:web:f0a41d82b130a6376dd897"
+      };
+
 
         // --- GLOBAL VARIABLES & FIREBASE SETUP ---
         
@@ -230,7 +243,9 @@
 
         // MANDATORY GLOBALS
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const canvasFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        // Use Canvas config if available, otherwise use the manual config.
+        const firebaseConfig = canvasFirebaseConfig && Object.keys(canvasFirebaseConfig).length > 0 ? canvasFirebaseConfig : MANUAL_FIREBASE_CONFIG;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         // Firestore Path Definitions (Public Data for Shared State)
@@ -264,11 +279,16 @@
         
         async function initializeFirebase() {
             try {
+                // If running locally and the user hasn't replaced the config, throw a helpful error.
+                if (!canvasFirebaseConfig && Object.keys(firebaseConfig).length === 0) {
+                     throw new Error("Local Configuration Missing: Please obtain and update the MANUAL_FIREBASE_CONFIG object in the script.");
+                }
+
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Auth
+                // Auth: Use custom token if available (Canvas), otherwise use anonymous sign-in (GitHub Pages)
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
@@ -682,6 +702,8 @@
         // Initialize on load
         initializeFirebase();
 
-    </script>
+  const app = initializeApp(firebaseConfig);
+
+</script>
 </body>
 </html>
