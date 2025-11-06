@@ -1,25 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js"; // Import needed for setLogLevel to avoid a separate file
-// setLogLevel('Debug'); // Uncomment this for local debugging
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// --- Firebase Configuration (Merged from firebase_config.js for self-contained setup) ---
-const firebaseConfig = {
-  apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc", // Replace with your GitHub Pages public key
-  authDomain: "nightingaleledger-4627.firebaseapp.com",
-  projectId: "nightingaleledger-4627",
-  storageBucket: "nightingaleledger-4627.firebasestorage.app",
-  messagingSenderId: "299188208241",
-  appId: "1:299188208241:web:7bb086293357f4ec4691d0",
-  measurementId: "G-5WLM6RZQ0Y"
-};
-
-// --- App Path Configuration for GitHub Pages ---
-// We use a fixed, public app ID for the Firestore path when hosted publicly,
-// as the Canvas environment variables are not present.
-const GITHUB_PAGES_APP_ID = 'nightingale-public-ledger';
-const FIREBASE_COLLECTION_ROOT = `artifacts/${GITHUB_PAGES_APP_ID}/public/data`;
+// --- Global Variables (Provided by Canvas Environment) ---
+// Note: EXAMPLE_DATABASE is expected to be loaded via examples.js first.
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
 // --- Firebase/App State ---
 let app;
@@ -40,184 +27,528 @@ let gameState = {
     habits: [],
     rewards: [],
     punishments: [],
-    ledger: []
+    // Tracking active assignments
+    activeHabitIDs: {}, // { habitId: { keeper: assignedTime, nightingale: assignedTime } }
+    activePunishmentIDs: {}, // { punishmentId: assignedTime }
+    activeRewardIDs: {}, // { rewardId: assignedTime }
 };
 
-// --- Utility Functions ---
+// --- Modal/UI Handlers ---
 
 /**
- * Custom modal replacement for alert/confirm.
- * @param {string} title
- * @param {string} message
+ * Creates and shows a custom modal dialog (since alert() is forbidden).
+ * @param {string} title The title of the modal.
+ * @param {string} message The message body of the modal.
+ * @param {function} [onConfirm] Optional function to run if confirmed. If present, shows 'Confirm' button.
  */
-function showModal(title, message) {
-    // A simple, non-blocking way to show messages for a GitHub Pages app
-    console.warn(`[Modal: ${title}] ${message}`);
-
-    const modal = document.getElementById('custom-modal');
+window.showModal = function(title, message, onConfirm = null) {
+    let modal = document.getElementById('custom-modal');
     if (!modal) {
-        console.error("Modal element not found.");
-        return;
+        // Create modal structure if it doesn't exist
+        modal = document.createElement('div');
+        modal.id = 'custom-modal';
+        modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity duration-300 opacity-0 pointer-events-none';
+        modal.innerHTML = `
+            <div class="bg-[#242429] card p-6 w-96 max-w-[90%] transform transition-transform duration-300 scale-95 rounded-xl shadow-2xl">
+                <h3 class="text-xl font-bold mb-4 text-[#b05c6c]" id="modal-title"></h3>
+                <p class="text-gray-300 mb-6" id="modal-message"></p>
+                <div class="flex justify-end space-x-3">
+                    <button id="modal-cancel-btn" class="btn-secondary">Cancel</button>
+                    <button id="modal-confirm-btn" class="btn-primary">Confirm</button>
+                    <button id="modal-ok-btn" class="btn-primary">OK</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
     }
 
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-message').textContent = message;
-    modal.classList.remove('hidden');
-    // Simple auto-hide after 5 seconds
+
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    const okBtn = document.getElementById('modal-ok-btn');
+
+    if (onConfirm) {
+        // Confirmation mode
+        okBtn.style.display = 'none';
+        confirmBtn.style.display = 'inline-flex';
+        cancelBtn.style.display = 'inline-flex';
+
+        confirmBtn.onclick = () => {
+            onConfirm();
+            window.hideModal();
+        };
+        cancelBtn.onclick = window.hideModal;
+    } else {
+        // Simple alert mode
+        okBtn.style.display = 'inline-flex';
+        confirmBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+
+        okBtn.onclick = window.hideModal;
+    }
+
+    // Show modal
     setTimeout(() => {
-        modal.classList.add('hidden');
-    }, 5000);
-}
+        modal.classList.remove('opacity-0', 'pointer-events-none');
+        modal.querySelector('.card').classList.remove('scale-95');
+    }, 10); // Small delay for transition
+};
 
-// Function to safely generate a UUID-like string for clients without crypto.randomUUID
-function generateId() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
+window.hideModal = function() {
+    const modal = document.getElementById('custom-modal');
+    if (modal) {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        modal.querySelector('.card').classList.add('scale-95');
+    }
+};
 
+// --- Firebase Initialization and Auth ---
 
-// --- Firebase Initialization and Auth for GitHub Pages ---
+async function initializeFirebase() {
+    if (!firebaseConfig) {
+        console.error("Firebase configuration is missing.");
+        document.getElementById('loading-state').textContent = 'Error: Firebase configuration missing.';
+        return;
+    }
 
-/**
- * Initializes Firebase and signs in anonymously for a public, shared ledger.
- */
-async function initializeAndAuthenticate() {
     try {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
+        // Enable Firestore Debug Logging
+        setLogLevel('debug'); 
         auth = getAuth(app);
-        
-        // Use setLogLevel('debug') for debugging purposes
-        // setLogLevel('debug'); 
 
-        // Sign in anonymously for a simple, publicly accessible ledger
-        await signInAnonymously(auth);
+        // Handle initial authentication
+        if (initialAuthToken) {
+            await signInWithCustomToken(auth, initialAuthToken);
+        } else {
+            // Sign in anonymously if no token is provided
+            await signInAnonymously(auth);
+        }
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // User is signed in (anonymously or otherwise)
-                userId = user.uid;
-                
-                // Set the path to the single, public game state document
-                GAME_STATE_PATH = doc(db, `${FIREBASE_COLLECTION_ROOT}/gamestate`, GAME_STATE_DOC_ID);
-                
-                // Display debug info
-                document.getElementById('current-user-id').textContent = userId;
-                document.getElementById('current-app-id').textContent = GITHUB_PAGES_APP_ID;
-                
-                // Start listening for game state updates
-                listenForGameState();
-            } else {
-                // User is signed out. This shouldn't happen after anonymous sign-in,
-                // but good for logging.
-                userId = 'Signed Out';
-                document.getElementById('current-user-id').textContent = 'N/A';
-                document.getElementById('current-app-id').textContent = GITHUB_PAGES_APP_ID;
-                showModal("Connection Error", "User could not be authenticated.");
-            }
+        // Wait for auth state to be confirmed
+        await new Promise(resolve => {
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    // Public path for collaborative games
+                    GAME_STATE_PATH = `artifacts/${appId}/public/data/${GAME_STATE_DOC_ID}`;
+                    console.log(`Authenticated. User ID: ${userId}, Data Path: ${GAME_STATE_PATH}`);
+                    resolve();
+                } else {
+                    // This should not happen in this environment, but handle it.
+                    console.warn("User not authenticated.");
+                    resolve();
+                }
+                unsubscribe();
+            });
         });
+
+        // Start listening to the game state
+        await subscribeToGameState();
+
     } catch (error) {
-        console.error("Firebase Initialization or Auth Error:", error);
-        showModal("Setup Failed", `Could not connect to the ledger: ${error.message}`);
+        console.error("Firebase initialization or authentication failed:", error);
+        document.getElementById('loading-state').textContent = `Error: Initialization failed. ${error.message}`;
     }
 }
 
+// --- Firestore Subscriptions ---
 
 /**
- * Sets up a real-time listener for the single game state document.
+ * Subscribes to the single game state document for real-time updates.
  */
-function listenForGameState() {
-    if (!db || !GAME_STATE_PATH) return;
+async function subscribeToGameState() {
+    if (!db || !GAME_STATE_PATH) {
+        console.warn("Database or path not ready for subscription.");
+        return;
+    }
 
-    // Use onSnapshot for real-time updates
-    const unsubscribe = onSnapshot(GAME_STATE_PATH, (docSnap) => {
+    const docRef = doc(db, GAME_STATE_PATH);
+
+    // Initial check: if the document doesn't exist, create it with initial state.
+    try {
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            console.log("Game state document not found. Creating initial state...");
+            await setDoc(docRef, gameState);
+        }
+    } catch (e) {
+        console.error("Error checking or creating initial document:", e);
+        showModal("Database Error", "Could not verify or create the initial game state document.");
+        document.getElementById('loading-state').textContent = 'Error: Database connection issue.';
+        return;
+    }
+
+
+    onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
-            // Document exists, load the state
             const data = docSnap.data();
-            // Important: Use deep copy to prevent mutation issues
-            gameState = JSON.parse(JSON.stringify(data)); 
+            // Deep merge data to ensure all keys are present, especially if a new key is added later
+            gameState = {
+                ...gameState,
+                ...data,
+                players: { ...gameState.players, ...(data.players || {}) },
+                scores: { ...gameState.scores, ...(data.scores || {}) },
+            };
             
-            // Render the UI based on the new state
+            // Render UI with the new state
             renderUI();
             
-            // Remove loading placeholders
-            document.getElementById('habits-loading').classList.add('hidden');
-            document.getElementById('rewards-loading').classList.add('hidden');
-            document.getElementById('punishments-loading').classList.add('hidden');
-            document.getElementById('ledger-loading').classList.add('hidden');
-
-            console.log("Game state updated from Firestore.");
+            document.getElementById('loading-state').style.display = 'none';
         } else {
-            // Document does not exist (first time running), create it
-            console.log("No game state found. Creating initial state...");
-            // Initial save is done below in saveGameState.
-            saveGameState();
+            console.warn("No game state document found. This should have been created.");
+            document.getElementById('loading-state').textContent = 'Error: Game state is missing.';
         }
     }, (error) => {
-        console.error("Firestore listen failed:", error);
-        showModal("Database Error", "Failed to retrieve real-time ledger data.");
+        console.error("Error listening to game state:", error);
+        document.getElementById('loading-state').textContent = 'Error: Real-time update failed.';
     });
-
-    // In a real app, you might expose 'unsubscribe' to stop listening when the component unmounts.
-    // window.unsubscribeListener = unsubscribe;
 }
 
 /**
- * Writes the current gameState object to Firestore.
+ * Helper to update the game state in Firestore.
+ * @param {Object} updates The fields to update in the document.
  */
-async function saveGameState() {
-    if (!GAME_STATE_PATH) {
-        console.error("Cannot save: GAME_STATE_PATH is null.");
+async function updateGameState(updates) {
+    if (!db || !GAME_STATE_PATH || !userId) {
+        console.error("Cannot update state: DB/Path/User not ready.");
         return;
     }
+    const docRef = doc(db, GAME_STATE_PATH);
     try {
-        // Use setDoc to create or overwrite the document
-        await setDoc(GAME_STATE_PATH, gameState, { merge: true });
-        console.log("Game state saved successfully.");
-    } catch (e) {
-        console.error("Error saving document: ", e);
-        showModal("Save Error", "Failed to save data to the ledger.");
+        await updateDoc(docRef, updates);
+    } catch (error) {
+        console.error("Error updating game state:", error);
+        showModal("Update Failed", `Could not save changes to the ledger. Error: ${error.message}`);
     }
 }
 
-// --- Player Management ---
+// --- UI Rendering ---
 
-window.setPlayerName = function(playerType) {
-    const inputId = `player-${playerType}-name`;
-    const newName = document.getElementById(inputId).value.trim();
+function renderUI() {
+    if (!gameState) return;
+
+    // 1. Render App/User IDs
+    document.getElementById('current-user-id').textContent = userId || 'N/A';
+    document.getElementById('current-app-id').textContent = appId || 'N/A';
+
+    // 2. Render Player Scores and Names
+    document.getElementById('keeper-name').textContent = gameState.players.keeper;
+    document.getElementById('nightingale-name').textContent = gameState.players.nightingale;
+    document.getElementById('keeper-score').textContent = gameState.scores.keeper;
+    document.getElementById('nightingale-score').textContent = gameState.scores.nightingale;
     
-    if (!newName) {
-        showModal("Input Required", "Player name cannot be empty.");
-        return;
+    // Set the input names to the current state names for editing
+    document.getElementById('keeper-name-input').value = gameState.players.keeper;
+    document.getElementById('nightingale-name-input').value = gameState.players.nightingale;
+
+    // 3. Render Habits
+    const habitsList = document.getElementById('habits-list');
+    habitsList.innerHTML = '';
+    if (gameState.habits.length === 0) {
+        document.getElementById('habits-loading').style.display = 'block';
+    } else {
+        document.getElementById('habits-loading').style.display = 'none';
+        gameState.habits.forEach(habit => {
+            habitsList.appendChild(createHabitCard(habit));
+        });
     }
 
-    if (newName.length > 20) {
-        showModal("Name Too Long", "Name must be 20 characters or less.");
-        return;
+    // 4. Render Rewards
+    const rewardsList = document.getElementById('rewards-list');
+    rewardsList.innerHTML = '';
+    if (gameState.rewards.length === 0) {
+        document.getElementById('rewards-loading').style.display = 'block';
+    } else {
+        document.getElementById('rewards-loading').style.display = 'none';
+        gameState.rewards.forEach(reward => {
+            rewardsList.appendChild(createRewardCard(reward));
+        });
     }
 
-    // Update state and save
-    gameState.players[playerType] = newName;
-    saveGameState();
+    // 5. Render Punishments
+    const punishmentsList = document.getElementById('punishments-list');
+    punishmentsList.innerHTML = '';
+    if (gameState.punishments.length === 0) {
+        document.getElementById('punishments-loading').style.display = 'block';
+    } else {
+        document.getElementById('punishments-loading').style.display = 'none';
+        gameState.punishments.forEach(punishment => {
+            punishmentsList.appendChild(createPunishmentCard(punishment));
+        });
+    }
+}
+
+/**
+ * Creates the HTML card for a single habit.
+ * @param {object} habit The habit object.
+ * @returns {HTMLElement} The card element.
+ */
+function createHabitCard(habit) {
+    const isKeeperHabit = habit.assignee === 'keeper';
+    const activeData = gameState.activeHabitIDs[habit.id] || {};
+    const assignedTime = activeData[habit.assignee];
+    const isActive = !!assignedTime;
+    
+    // Determine the color theme based on the assignee
+    const colorClass = isKeeperHabit ? 'border-red-600' : 'border-blue-600';
+    const textClass = isKeeperHabit ? 'text-red-400' : 'text-blue-400';
+    const title = isKeeperHabit ? 'The Keeper\'s Habit' : 'The Nightingale\'s Habit';
+    const assigneeName = isKeeperHabit ? gameState.players.keeper : gameState.players.nightingale;
+    const oppositeRole = isKeeperHabit ? 'nightingale' : 'keeper';
+    const oppositeName = isKeeperHabit ? gameState.players.nightingale : gameState.players.keeper;
+    
+    // Check if the current user is the "Opposite Role" (the one who assigns/tracks it)
+    // NOTE: This logic assumes both partners use the same account to track/manage.
+    // For simplicity, we allow both users to interact with all controls.
+
+    const card = document.createElement('div');
+    card.className = `p-4 card border-l-4 ${colorClass} transition duration-300 hover:shadow-lg`;
+    card.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+            <h4 class="text-lg font-bold ${textClass}">${title}</h4>
+            <span class="text-sm font-semibold text-white bg-gray-700 px-3 py-1 rounded-full">${habit.points} Points</span>
+        </div>
+        <p class="text-sm text-gray-400 mb-2">Assigned to: <span class="font-semibold text-white">${assigneeName}</span></p>
+        <p class="text-gray-300 mb-4">${habit.description} (${habit.targetTimes} times per day)</p>
+        
+        <div class="flex items-center space-x-3 text-sm">
+            <button onclick="window.toggleHabitActive('${habit.id}', '${habit.assignee}')" class="flex-1 px-3 py-2 text-center rounded-lg font-semibold transition-colors duration-200 
+                ${isActive ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}">
+                ${isActive ? 'Mark Inactive' : 'Assign Today'}
+            </button>
+            
+            <button onclick="window.showHabitCompletionModal('${habit.id}', '${oppositeRole}', '${oppositeName}')" 
+                    class="flex-1 px-3 py-2 text-center rounded-lg font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
+                Mark Completed
+            </button>
+            
+            <button onclick="window.removeHabit('${habit.id}')" class="text-red-500 hover:text-red-400 p-2 leading-none" title="Remove Habit">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        </div>
+        ${isActive ? `<p class="mt-2 text-xs italic text-gray-500">Assigned: ${new Date(assignedTime).toLocaleDateString()} at ${new Date(assignedTime).toLocaleTimeString()}</p>` : ''}
+    `;
+    return card;
+}
+
+/**
+ * Creates the HTML card for a single reward.
+ * @param {object} reward The reward object.
+ * @returns {HTMLElement} The card element.
+ */
+function createRewardCard(reward) {
+    const isActive = !!gameState.activeRewardIDs[reward.id];
+    
+    const card = document.createElement('div');
+    card.className = `p-4 card border-l-4 border-yellow-600 transition duration-300 hover:shadow-lg`;
+    card.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+            <h4 class="text-lg font-bold text-yellow-400">${reward.title}</h4>
+            <span class="text-sm font-semibold text-black bg-yellow-400 px-3 py-1 rounded-full">${reward.cost} Points</span>
+        </div>
+        <p class="text-gray-300 mb-4">${reward.description}</p>
+        
+        <div class="flex items-center space-x-3 text-sm">
+            <button onclick="window.redeemReward('${reward.id}', ${reward.cost})" 
+                    class="flex-1 px-3 py-2 text-center rounded-lg font-semibold bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                    id="redeem-btn-${reward.id}">
+                Redeem Reward
+            </button>
+            
+            <button onclick="window.toggleRewardActive('${reward.id}')" class="flex-1 px-3 py-2 text-center rounded-lg font-semibold transition-colors duration-200 
+                ${isActive ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'}">
+                ${isActive ? 'Mark Redeemed' : 'Mark Available'}
+            </button>
+            
+            <button onclick="window.removeReward('${reward.id}')" class="text-red-500 hover:text-red-400 p-2 leading-none" title="Remove Reward">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        </div>
+        ${isActive ? `<p class="mt-2 text-xs italic text-gray-500">Active Since: ${new Date(gameState.activeRewardIDs[reward.id]).toLocaleDateString()}</p>` : ''}
+    `;
+    return card;
+}
+
+/**
+ * Creates the HTML card for a single punishment.
+ * @param {object} punishment The punishment object.
+ * @returns {HTMLElement} The card element.
+ */
+function createPunishmentCard(punishment) {
+    const isActive = !!gameState.activePunishmentIDs[punishment.id];
+    
+    const card = document.createElement('div');
+    card.className = `p-4 card border-l-4 border-purple-600 transition duration-300 hover:shadow-lg`;
+    card.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+            <h4 class="text-lg font-bold text-purple-400">${punishment.title}</h4>
+        </div>
+        <p class="text-gray-300 mb-4">${punishment.description}</p>
+        
+        <div class="flex items-center space-x-3 text-sm">
+            <button onclick="window.assignPunishment('${punishment.id}')" class="flex-1 px-3 py-2 text-center rounded-lg font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50">
+                Assign Punishment
+            </button>
+            
+            <button onclick="window.togglePunishmentActive('${punishment.id}')" class="flex-1 px-3 py-2 text-center rounded-lg font-semibold transition-colors duration-200 
+                ${isActive ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'}">
+                ${isActive ? 'Mark Complete' : 'Mark Available'}
+            </button>
+            
+            <button onclick="window.removePunishment('${punishment.id}')" class="text-red-500 hover:text-red-400 p-2 leading-none" title="Remove Punishment">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        </div>
+        ${isActive ? `<p class="mt-2 text-xs italic text-gray-500">Active Since: ${new Date(gameState.activePunishmentIDs[punishment.id]).toLocaleDateString()}</p>` : ''}
+    `;
+    return card;
 }
 
 
-// --- Habit Management ---
+// --- Form Visibility Toggles ---
 
-window.toggleHabitForm = function() {
-    document.getElementById('new-habit-form').classList.toggle('hidden');
+window.toggleHabitForm = function(force = null) {
+    const form = document.getElementById('new-habit-form');
+    const isVisible = force !== null ? force : form.classList.contains('hidden');
+    
+    if (isVisible) {
+        form.classList.remove('hidden');
+    } else {
+        form.classList.add('hidden');
+    }
 }
 
+window.toggleRewardForm = function(force = null) {
+    const form = document.getElementById('new-reward-form');
+    const isVisible = force !== null ? force : form.classList.contains('hidden');
+    
+    if (isVisible) {
+        form.classList.remove('hidden');
+    } else {
+        form.classList.add('hidden');
+    }
+}
+
+window.togglePunishmentForm = function(force = null) {
+    const form = document.getElementById('new-punishment-form');
+    const isVisible = force !== null ? force : form.classList.contains('hidden');
+    
+    if (isVisible) {
+        form.classList.remove('hidden');
+    } else {
+        form.classList.add('hidden');
+    }
+}
+
+
+// --- Core Game Logic Functions ---
+
+/**
+ * Prompts the user to specify which role is performing the action (Keeper or Nightingale).
+ * NOTE: This is a simplification; in a real app, the user would be authenticated as one role.
+ * @param {string} action The action to confirm (e.g., 'addReward' or 'subtractReward').
+ * @param {number} points The point value.
+ * @param {string} item The name of the item (for display).
+ * @param {string} [id] Optional ID for specific items (like rewards/punishments).
+ */
+window.promptRoleAction = function(action, points, item, id = null) {
+    const message = `Which role is performing this action?`;
+
+    window.showModal(
+        "Select Role",
+        message,
+        () => {
+            // This is just a placeholder confirm, we need a select box for the role
+            // Since we can't create complex UI in the prompt, we'll simplify the confirm flow
+            // and assume the user's intent. Let's add the role selection to the form itself.
+            // For now, let's simplify the `redeemReward` to be a straight confirmation of points spent by the redeeming user.
+            
+            // Revert to a simpler confirmation for the reward flow
+            if (action === 'redeemRewardConfirmed' && id) {
+                // Determine who is spending the points.
+                // Since this is a collaborative ledger, we have to ask who wants the reward.
+                const roleChoiceMessage = `Which player is redeeming the reward: **${item}** for ${points} points?`;
+                window.showModal(
+                    "Redeem Reward",
+                    roleChoiceMessage,
+                    () => { window.redeemRewardConfirmed(id, points, 'keeper'); },
+                    () => { window.redeemRewardConfirmed(id, points, 'nightingale'); }
+                );
+            }
+        }
+    );
+};
+
+
+/**
+ * Sets the names for Keeper and Nightingale.
+ */
+window.setPlayerNames = function() {
+    const keeperName = document.getElementById('keeper-name-input').value.trim();
+    const nightingaleName = document.getElementById('nightingale-name-input').value.trim();
+    
+    if (!keeperName || !nightingaleName) {
+        showModal("Input Required", "Please enter names for both The Keeper and The Nightingale.");
+        return;
+    }
+    
+    updateGameState({
+        players: {
+            keeper: keeperName,
+            nightingale: nightingaleName
+        }
+    });
+    
+    showModal("Names Updated", "The Keeper and The Nightingale names have been saved.");
+};
+
+/**
+ * Resets the scores for both roles to zero.
+ */
+window.resetScores = function() {
+    showModal(
+        "Confirm Reset",
+        "Are you sure you want to reset all scores to zero? This action cannot be undone.",
+        () => {
+            updateGameState({
+                scores: {
+                    keeper: 0,
+                    nightingale: 0
+                }
+            });
+            showModal("Scores Reset", "All scores have been reset to zero.");
+        }
+    );
+};
+
+
+// --- CRUD Operations ---
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+}
+
+/**
+ * Adds a new habit to the ledger.
+ */
 window.addHabit = function() {
     const desc = document.getElementById('new-habit-desc').value.trim();
-    const points = parseInt(document.getElementById('new-habit-points').value, 10);
-    const times = parseInt(document.getElementById('new-habit-times').value, 10);
-    const assignee = document.getElementById('new-habit-assignee').value; // 'keeper' or 'nightingale'
+    const points = parseInt(document.getElementById('new-habit-points').value);
+    const times = parseInt(document.getElementById('new-habit-times').value);
+    const assignee = document.getElementById('new-habit-assignee').value;
 
-    if (!desc || isNaN(points) || points <= 0 || isNaN(times) || times <= 0 || !assignee) {
-        showModal("Invalid Input", "Please provide a valid description, positive points, and positive times-per-week.");
+    if (!desc || isNaN(points) || isNaN(times) || points <= 0 || times <= 0) {
+        showModal("Invalid Input", "Please provide a valid description, positive points, and positive target times.");
         return;
     }
 
@@ -225,103 +556,31 @@ window.addHabit = function() {
         id: generateId(),
         description: desc,
         points: points,
-        target_per_week: times,
-        assignee: assignee,
-        current_streak: 0,
-        last_reset: Date.now(), // Used for tracking weekly resets
+        targetTimes: times,
+        assignee: assignee
     };
 
-    gameState.habits.push(newHabit);
-    saveGameState();
-
-    // Clear form
+    const newHabits = [...gameState.habits, newHabit];
+    updateGameState({ habits: newHabits });
+    
+    // Clear form and hide
     document.getElementById('new-habit-desc').value = '';
-    document.getElementById('new-habit-points').value = 10;
-    document.getElementById('new-habit-times').value = 1;
-    window.toggleHabitForm();
-}
-
-window.removeHabit = function(id) {
-    gameState.habits = gameState.habits.filter(h => h.id !== id);
-    saveGameState();
-}
+    document.getElementById('new-habit-points').value = '';
+    document.getElementById('new-habit-times').value = '1';
+    window.toggleHabitForm(false);
+    showModal("Habit Added", `New habit for ${gameState.players[assignee]} added successfully!`);
+};
 
 /**
- * Logs a habit completion and updates scores and ledger.
- * @param {string} habitId
+ * Adds a new reward to the ledger.
  */
-window.logHabitCompletion = async function(habitId) {
-    if (!db || !GAME_STATE_PATH) return;
-
-    const habitIndex = gameState.habits.findIndex(h => h.id === habitId);
-    if (habitIndex === -1) {
-        console.error("Habit not found.");
-        return;
-    }
-
-    const habit = gameState.habits[habitIndex];
-    const earningPlayer = habit.assignee === 'keeper' ? 'nightingale' : 'keeper';
-    const pointsEarned = habit.points;
-
-    // Use a transaction for safe score and ledger update
-    try {
-        await runTransaction(db, async (transaction) => {
-            const docSnapshot = await transaction.get(GAME_STATE_PATH);
-
-            if (!docSnapshot.exists()) {
-                throw "Document does not exist!";
-            }
-            
-            // Get current data from the transaction
-            const currentData = docSnapshot.data();
-            const newScores = currentData.scores;
-            const newLedger = currentData.ledger || [];
-            
-            // 1. Update Score
-            newScores[earningPlayer] = (newScores[earningPlayer] || 0) + pointsEarned;
-
-            // 2. Add Ledger Entry
-            const ledgerEntry = {
-                id: generateId(),
-                type: 'Earned',
-                points: pointsEarned,
-                description: `Completed Habit: ${habit.description}`,
-                player: earningPlayer,
-                timestamp: Date.now()
-            };
-            newLedger.unshift(ledgerEntry);
-
-            // 3. Update the document within the transaction
-            transaction.update(GAME_STATE_PATH, { 
-                scores: newScores, 
-                ledger: newLedger
-            });
-            
-            // Since habits array is part of the game state, it is updated in the listener.
-            // But we can update the streak here if needed, though it's not currently reflected in Firestore.
-            // For now, only update scores and ledger via transaction to keep it simple.
-        });
-        showModal("Success", `${gameState.players[earningPlayer]} earned ${pointsEarned} points!`);
-    } catch (e) {
-        console.error("Transaction failed: ", e);
-        showModal("Update Failed", "Failed to log habit completion.");
-    }
-}
-
-
-// --- Reward Management ---
-
-window.toggleRewardForm = function() {
-    document.getElementById('new-reward-form').classList.toggle('hidden');
-}
-
 window.addReward = function() {
     const title = document.getElementById('new-reward-title').value.trim();
-    const cost = parseInt(document.getElementById('new-reward-cost').value, 10);
+    const cost = parseInt(document.getElementById('new-reward-cost').value);
     const desc = document.getElementById('new-reward-desc').value.trim();
 
     if (!title || !desc || isNaN(cost) || cost <= 0) {
-        showModal("Invalid Input", "Please provide a valid title, description, and positive cost.");
+        showModal("Invalid Input", "Please provide a valid title, description, and positive point cost.");
         return;
     }
 
@@ -332,100 +591,26 @@ window.addReward = function() {
         description: desc
     };
 
-    gameState.rewards.push(newReward);
-    saveGameState();
-
-    // Clear form
+    const newRewards = [...gameState.rewards, newReward];
+    updateGameState({ rewards: newRewards });
+    
+    // Clear form and hide
     document.getElementById('new-reward-title').value = '';
-    document.getElementById('new-reward-cost').value = 50;
+    document.getElementById('new-reward-cost').value = '';
     document.getElementById('new-reward-desc').value = '';
-    window.toggleRewardForm();
-}
-
-window.removeReward = function(id) {
-    gameState.rewards = gameState.rewards.filter(r => r.id !== id);
-    saveGameState();
-}
+    window.toggleRewardForm(false);
+    showModal("Reward Added", `New reward '${title}' added successfully!`);
+};
 
 /**
- * Purchases a reward and updates scores and ledger.
- * @param {string} rewardId
- * @param {string} playerType - 'keeper' or 'nightingale'
+ * Adds a new punishment to the ledger.
  */
-window.purchaseReward = async function(rewardId, playerType) {
-    if (!db || !GAME_STATE_PATH) return;
-    
-    const reward = gameState.rewards.find(r => r.id === rewardId);
-    if (!reward) {
-        console.error("Reward not found.");
-        return;
-    }
-
-    const cost = reward.cost;
-    const playerName = gameState.players[playerType];
-    
-    try {
-        await runTransaction(db, async (transaction) => {
-            const docSnapshot = await transaction.get(GAME_STATE_PATH);
-
-            if (!docSnapshot.exists()) {
-                throw "Document does not exist!";
-            }
-            
-            const currentData = docSnapshot.data();
-            const newScores = currentData.scores;
-            const newLedger = currentData.ledger || [];
-
-            // 1. Check if player has enough points
-            if ((newScores[playerType] || 0) < cost) {
-                // Must throw to abort the transaction
-                throw new Error("Insufficient Points."); 
-            }
-            
-            // 2. Update Score
-            newScores[playerType] = newScores[playerType] - cost;
-
-            // 3. Add Ledger Entry
-            const ledgerEntry = {
-                id: generateId(),
-                type: 'Spent',
-                points: cost,
-                description: `Purchased Reward: ${reward.title}`,
-                player: playerType,
-                timestamp: Date.now()
-            };
-            newLedger.unshift(ledgerEntry);
-
-            // 4. Update the document within the transaction
-            transaction.update(GAME_STATE_PATH, { 
-                scores: newScores, 
-                ledger: newLedger
-            });
-        });
-        showModal("Reward Claimed", `${playerName} claimed "${reward.title}" for ${cost} points!`);
-    } catch (e) {
-        if (e.message === "Insufficient Points.") {
-             showModal("Cannot Purchase", `${playerName} does not have enough points (Cost: ${cost}).`);
-        } else {
-            console.error("Transaction failed: ", e);
-            showModal("Update Failed", "Failed to purchase reward.");
-        }
-    }
-}
-
-
-// --- Punishment Management ---
-
-window.togglePunishmentForm = function() {
-    document.getElementById('new-punishment-form').classList.toggle('hidden');
-}
-
 window.addPunishment = function() {
     const title = document.getElementById('new-punishment-title').value.trim();
     const desc = document.getElementById('new-punishment-desc').value.trim();
 
     if (!title || !desc) {
-        showModal("Invalid Input", "Please provide a valid title and description.");
+        showModal("Invalid Input", "Please provide a valid title and description for the punishment.");
         return;
     }
 
@@ -435,257 +620,315 @@ window.addPunishment = function() {
         description: desc
     };
 
-    gameState.punishments.push(newPunishment);
-    saveGameState();
-
-    // Clear form
+    const newPunishments = [...gameState.punishments, newPunishment];
+    updateGameState({ punishments: newPunishments });
+    
+    // Clear form and hide
     document.getElementById('new-punishment-title').value = '';
     document.getElementById('new-punishment-desc').value = '';
-    window.togglePunishmentForm();
-}
+    window.togglePunishmentForm(false);
+    showModal("Punishment Added", `New punishment '${title}' added successfully!`);
+};
 
-window.removePunishment = function(id) {
-    gameState.punishments = gameState.punishments.filter(p => p.id !== id);
-    saveGameState();
-}
 
 /**
- * Assigns a punishment to a player and adds a ledger entry.
- * NOTE: Punishments do not currently affect the score, they are tracked via the ledger.
- * @param {string} punishmentId
- * @param {string} playerType - 'keeper' or 'nightingale'
+ * Removes a habit from the ledger.
+ * @param {string} id Habit ID.
  */
-window.assignPunishment = async function(punishmentId, playerType) {
-    if (!db || !GAME_STATE_PATH) return;
-
-    const punishment = gameState.punishments.find(p => p.id === punishmentId);
-    if (!punishment) {
-        console.error("Punishment not found.");
-        return;
-    }
-    
-    const playerName = gameState.players[playerType];
-    
-    try {
-        await runTransaction(db, async (transaction) => {
-            const docSnapshot = await transaction.get(GAME_STATE_PATH);
-
-            if (!docSnapshot.exists()) {
-                throw "Document does not exist!";
-            }
+window.removeHabit = function(id) {
+    showModal(
+        "Confirm Deletion",
+        "Are you sure you want to remove this habit?",
+        () => {
+            const newHabits = gameState.habits.filter(h => h.id !== id);
+            // Also clean up active assignments
+            const newActiveHabitIDs = { ...gameState.activeHabitIDs };
+            delete newActiveHabitIDs[id];
             
-            const currentData = docSnapshot.data();
-            const newLedger = currentData.ledger || [];
-
-            // 1. Add Ledger Entry
-            const ledgerEntry = {
-                id: generateId(),
-                type: 'Punishment',
-                points: 0, // Punishments are status entries, not score changes
-                description: `Assigned Punishment: ${punishment.title}`,
-                player: playerType,
-                timestamp: Date.now()
-            };
-            newLedger.unshift(ledgerEntry);
-
-            // 2. Update the document within the transaction
-            transaction.update(GAME_STATE_PATH, { 
-                ledger: newLedger
-            });
-        });
-        showModal("Punishment Assigned", `Punishment "${punishment.title}" was assigned to ${playerName}.`);
-    } catch (e) {
-        console.error("Transaction failed: ", e);
-        showModal("Update Failed", "Failed to assign punishment.");
-    }
-}
-
-
-// --- UI Rendering ---
-
-function renderHabits() {
-    const container = document.getElementById('habits-list');
-    container.innerHTML = '';
-    
-    // Sort habits: keeper's habits first, then nightingale's
-    const sortedHabits = [...gameState.habits].sort((a, b) => {
-        if (a.assignee === 'keeper' && b.assignee === 'nightingale') return -1;
-        if (a.assignee === 'nightingale' && b.assignee === 'keeper') return 1;
-        return 0;
-    });
-
-    if (sortedHabits.length === 0) {
-        container.innerHTML = '<p class="text-center py-4 text-gray-500 italic">No habits defined yet.</p>';
-        return;
-    }
-
-    sortedHabits.forEach(habit => {
-        // Player who *earns* the points when the habit is completed
-        const earningPlayer = habit.assignee === 'keeper' ? 'nightingale' : 'keeper';
-        
-        container.innerHTML += `
-            <div class="habit-card">
-                <div class="flex-grow">
-                    <p class="text-lg font-bold text-white">${habit.description}</p>
-                    <p class="text-sm text-gray-400">
-                        Target: <span class="text-pink-300 font-semibold">${habit.target_per_week} times/wk</span> | 
-                        Points: <span class="text-green-400 font-semibold">+${habit.points} for ${gameState.players[earningPlayer]}</span>
-                    </p>
-                    <p class="text-xs text-gray-500 italic">
-                        Assigned to: ${gameState.players[habit.assignee]}
-                    </p>
-                </div>
-                <div class="flex space-x-2 items-center">
-                    <button onclick="window.logHabitCompletion('${habit.id}')" class="btn-success">Log Completion</button>
-                    <button onclick="window.removeHabit('${habit.id}')" class="text-gray-500 hover:text-red-500 p-2 transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m-5 0h14"></path></svg>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-}
-
-function renderRewards() {
-    const container = document.getElementById('rewards-list');
-    container.innerHTML = '';
-
-    if (gameState.rewards.length === 0) {
-        container.innerHTML = '<p class="text-center py-4 text-gray-500 italic">No rewards defined yet.</p>';
-        return;
-    }
-
-    gameState.rewards.forEach(reward => {
-        // Check if the reward can be afforded by either player
-        const keeperAffords = gameState.scores.keeper >= reward.cost;
-        const nightingaleAffords = gameState.scores.nightingale >= reward.cost;
-
-        container.innerHTML += `
-            <div class="reward-card">
-                <div class="flex-grow">
-                    <h3 class="text-xl font-bold text-pink-300">${reward.title}</h3>
-                    <p class="text-sm text-gray-400 mb-2">${reward.description}</p>
-                    <p class="text-lg text-yellow-400 font-extrabold flex items-center">
-                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zm-3.5 9.5a1 1 0 112 0 1 1 0 01-2 0zm7 0a1 1 0 112 0 1 1 0 01-2 0zm-3.5-5a1 1 0 112 0 1 1 0 01-2 0z"></path></svg>
-                        ${reward.cost} Points
-                    </p>
-                </div>
-                <div class="flex flex-col space-y-2">
-                    <button onclick="window.purchaseReward('${reward.id}', 'keeper')" 
-                            class="${keeperAffords ? 'btn-purchase' : 'btn-disabled'}" 
-                            ${!keeperAffords ? 'disabled' : ''}>
-                        ${gameState.players.keeper} Purchase
-                    </button>
-                    <button onclick="window.purchaseReward('${reward.id}', 'nightingale')" 
-                            class="${nightingaleAffords ? 'btn-purchase' : 'btn-disabled'}" 
-                            ${!nightingaleAffords ? 'disabled' : ''}>
-                        ${gameState.players.nightingale} Purchase
-                    </button>
-                    <button onclick="window.removeReward('${reward.id}')" class="text-gray-500 hover:text-red-500 p-1 transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m-5 0h14"></path></svg>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-}
-
-function renderPunishments() {
-    const container = document.getElementById('punishments-list');
-    container.innerHTML = '';
-
-    if (gameState.punishments.length === 0) {
-        container.innerHTML = '<p class="text-center py-4 text-gray-500 italic">No punishments defined yet.</p>';
-        return;
-    }
-
-    gameState.punishments.forEach(punishment => {
-        container.innerHTML += `
-            <div class="punishment-card">
-                <div class="flex-grow">
-                    <h3 class="text-xl font-bold text-red-400">${punishment.title}</h3>
-                    <p class="text-sm text-gray-400 mb-2">${punishment.description}</p>
-                </div>
-                <div class="flex flex-col space-y-2">
-                    <button onclick="window.assignPunishment('${punishment.id}', 'keeper')" class="btn-punish">
-                        Assign to ${gameState.players.keeper}
-                    </button>
-                    <button onclick="window.assignPunishment('${punishment.id}', 'nightingale')" class="btn-punish">
-                        Assign to ${gameState.players.nightingale}
-                    </button>
-                    <button onclick="window.removePunishment('${punishment.id}')" class="text-gray-500 hover:text-red-500 p-1 transition-colors">
-                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m-5 0h14"></path></svg>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-}
-
-function renderScoreboard() {
-    document.getElementById('keeper-score').textContent = gameState.scores.keeper;
-    document.getElementById('nightingale-score').textContent = gameState.scores.nightingale;
-    
-    // Update player names in the form sections
-    document.getElementById('new-habit-assignee-keeper-name').textContent = gameState.players.keeper;
-    document.getElementById('new-habit-assignee-nightingale-name').textContent = gameState.players.nightingale;
-    
-    // Update player names in the settings section
-    document.getElementById('player-keeper-name').value = gameState.players.keeper;
-    document.getElementById('player-nightingale-name').value = gameState.players.nightingale;
-}
-
-function renderLedger() {
-    const container = document.getElementById('ledger-body');
-    container.innerHTML = '';
-    
-    if (gameState.ledger.length === 0) {
-        container.innerHTML = '<p class="text-center py-4 text-gray-500 italic" id="ledger-loading">No transactions recorded yet.</p>';
-        return;
-    }
-    
-    // Show only the last 20 entries for performance/readability
-    const recentLedger = gameState.ledger.slice(0, 20);
-
-    recentLedger.forEach(entry => {
-        const date = new Date(entry.timestamp).toLocaleString();
-        let colorClass = 'text-gray-400';
-        let pointText = '';
-        
-        if (entry.type === 'Earned') {
-            colorClass = 'text-green-400';
-            pointText = `+${entry.points}`;
-        } else if (entry.type === 'Spent') {
-            colorClass = 'text-red-400';
-            pointText = `-${entry.points}`;
-        } else if (entry.type === 'Punishment') {
-            colorClass = 'text-yellow-400';
-            pointText = `STATUS`;
+            updateGameState({ habits: newHabits, activeHabitIDs: newActiveHabitIDs });
+            showModal("Habit Removed", "The habit has been removed from the ledger.");
         }
-        
-        container.innerHTML += `
-            <tr class="border-b border-[#3c3c45] hover:bg-[#1a1a1d] transition-colors">
-                <td class="px-6 py-3 font-medium text-white">${gameState.players[entry.player]}</td>
-                <td class="px-6 py-3 ${colorClass}">${pointText}</td>
-                <td class="px-6 py-3 text-sm text-gray-400">${entry.description}</td>
-                <td class="px-6 py-3 text-xs text-gray-500">${date}</td>
-            </tr>
-        `;
+    );
+};
+
+/**
+ * Removes a reward from the ledger.
+ * @param {string} id Reward ID.
+ */
+window.removeReward = function(id) {
+    showModal(
+        "Confirm Deletion",
+        "Are you sure you want to remove this reward?",
+        () => {
+            const newRewards = gameState.rewards.filter(r => r.id !== id);
+            // Also clean up active assignments
+            const newActiveRewardIDs = { ...gameState.activeRewardIDs };
+            delete newActiveRewardIDs[id];
+            
+            updateGameState({ rewards: newRewards, activeRewardIDs: newActiveRewardIDs });
+            showModal("Reward Removed", "The reward has been removed from the ledger.");
+        }
+    );
+};
+
+/**
+ * Removes a punishment from the ledger.
+ * @param {string} id Punishment ID.
+ */
+window.removePunishment = function(id) {
+    showModal(
+        "Confirm Deletion",
+        "Are you sure you want to remove this punishment?",
+        () => {
+            const newPunishments = gameState.punishments.filter(p => p.id !== id);
+            // Also clean up active assignments
+            const newActivePunishmentIDs = { ...gameState.activePunishmentIDs };
+            delete newActivePunishmentIDs[id];
+            
+            updateGameState({ punishments: newPunishments, activePunishmentIDs: newActivePunishmentIDs });
+            showModal("Punishment Removed", "The punishment has been removed from the ledger.");
+        }
+    );
+};
+
+
+// --- Point and Assignment Logic ---
+
+/**
+ * Toggles a habit's active status, meaning it is currently assigned for the day.
+ * @param {string} habitId The ID of the habit.
+ * @param {string} assignee The role ('keeper' or 'nightingale') this habit is for.
+ */
+window.toggleHabitActive = function(habitId, assignee) {
+    const activeData = gameState.activeHabitIDs[habitId] || {};
+    const assignedTime = activeData[assignee];
+    const newActiveHabitIDs = { ...gameState.activeHabitIDs };
+    
+    if (assignedTime) {
+        // Mark Inactive/Unassign
+        delete newActiveHabitIDs[habitId];
+        showModal("Habit Unassigned", `${gameState.players[assignee]}'s habit is now marked as unassigned for the day.`);
+    } else {
+        // Mark Active/Assign
+        newActiveHabitIDs[habitId] = { ...activeData, [assignee]: Date.now() };
+        showModal("Habit Assigned", `${gameState.players[assignee]}'s habit has been assigned for tracking today.`);
+    }
+    
+    updateGameState({ activeHabitIDs: newActiveHabitIDs });
+};
+
+/**
+ * Shows a modal to mark a habit as completed and award points.
+ * @param {string} habitId The ID of the habit.
+ * @param {string} pointGiverRole The role who is giving the points (the partner).
+ * @param {string} pointGiverName The name of the partner.
+ */
+window.showHabitCompletionModal = function(habitId, pointGiverRole, pointGiverName) {
+    const habit = gameState.habits.find(h => h.id === habitId);
+    if (!habit) return;
+
+    const habitCompleterRole = habit.assignee;
+    const habitCompleterName = gameState.players[habitCompleterRole];
+
+    showModal(
+        "Confirm Habit Completion",
+        `Did **${habitCompleterName}** complete their habit, earning **${habit.points}** points for **${pointGiverName}**?`,
+        () => {
+            window.markHabitCompleted(habitId, habitCompleterRole, pointGiverRole, habit.points);
+        }
+    );
+};
+
+/**
+ * Marks a habit as completed and updates scores.
+ * @param {string} habitId The ID of the habit.
+ * @param {string} habitCompleterRole The role ('keeper' or 'nightingale') who completed the habit.
+ * @param {string} pointGiverRole The role who is being awarded the points (the partner).
+ * @param {number} points The points to be awarded.
+ */
+window.markHabitCompleted = function(habitId, habitCompleterRole, pointGiverRole, points) {
+    
+    // 1. Update Score (Point Giver gets the points)
+    const newScores = { ...gameState.scores };
+    newScores[pointGiverRole] += points;
+    
+    // 2. Clear the habit from active assignments
+    const newActiveHabitIDs = { ...gameState.activeHabitIDs };
+    delete newActiveHabitIDs[habitId];
+    
+    updateGameState({ 
+        scores: newScores,
+        activeHabitIDs: newActiveHabitIDs
     });
-}
+    
+    showModal("Success!", `Habit completed! ${gameState.players[pointGiverRole]} has been awarded ${points} points.`);
+};
 
 
-function renderUI() {
-    renderScoreboard();
-    renderHabits();
-    renderRewards();
-    renderPunishments();
-    renderLedger();
+/**
+ * Toggles a reward's active status, marking it as either available for use or redeemed.
+ * @param {string} rewardId The ID of the reward.
+ */
+window.toggleRewardActive = function(rewardId) {
+    const isActive = !!gameState.activeRewardIDs[rewardId];
+    const newActiveRewardIDs = { ...gameState.activeRewardIDs };
+    
+    if (isActive) {
+        // Mark Redeemed/Inactive
+        delete newActiveRewardIDs[rewardId];
+        showModal("Reward Redeemed", "This reward has been marked as redeemed and is now inactive.");
+    } else {
+        // Mark Available/Active
+        newActiveRewardIDs[rewardId] = Date.now();
+        showModal("Reward Activated", "This reward is now marked as available for redemption.");
+    }
+    
+    updateGameState({ activeRewardIDs: newActiveRewardIDs });
+};
+
+/**
+ * Initiates the reward redemption process by prompting the user for the redeeming role.
+ * @param {string} rewardId The ID of the reward.
+ * @param {number} cost The point cost.
+ */
+window.redeemReward = function(rewardId, cost) {
+    const reward = gameState.rewards.find(r => r.id === rewardId);
+    if (!reward) return;
+
+    const message = `Which role is spending **${cost}** points to redeem the reward: **${reward.title}**?`;
+    
+    // Custom modal with buttons for role selection
+    let roleSelectModal = document.getElementById('role-select-modal');
+    if (!roleSelectModal) {
+        roleSelectModal = document.createElement('div');
+        roleSelectModal.id = 'role-select-modal';
+        roleSelectModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity duration-300 opacity-0 pointer-events-none';
+        roleSelectModal.innerHTML = `
+            <div class="bg-[#242429] card p-6 w-96 max-w-[90%] transform transition-transform duration-300 scale-95 rounded-xl shadow-2xl">
+                <h3 class="text-xl font-bold mb-4 text-[#b05c6c]">Redeem Reward</h3>
+                <p class="text-gray-300 mb-6" id="role-select-message"></p>
+                <div class="flex justify-between space-x-3">
+                    <button id="select-keeper" class="btn-primary flex-1 bg-red-600 hover:bg-red-700">${gameState.players.keeper} (Keeper)</button>
+                    <button id="select-nightingale" class="btn-primary flex-1 bg-blue-600 hover:bg-blue-700">${gameState.players.nightingale} (Nightingale)</button>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button id="role-select-cancel" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(roleSelectModal);
+    }
+
+    document.getElementById('role-select-message').textContent = message;
+
+    // Remove old listeners
+    document.getElementById('select-keeper').replaceWith(document.getElementById('select-keeper').cloneNode(true));
+    document.getElementById('select-nightingale').replaceWith(document.getElementById('select-nightingale').cloneNode(true));
+    document.getElementById('role-select-cancel').replaceWith(document.getElementById('role-select-cancel').cloneNode(true));
+
+    // Add new listeners
+    document.getElementById('select-keeper').onclick = () => {
+        window.redeemRewardConfirmed(rewardId, cost, 'keeper');
+        window.hideRoleSelectModal();
+    };
+    document.getElementById('select-nightingale').onclick = () => {
+        window.redeemRewardConfirmed(rewardId, cost, 'nightingale');
+        window.hideRoleSelectModal();
+    };
+    document.getElementById('role-select-cancel').onclick = window.hideRoleSelectModal;
+
+    // Show modal
+    setTimeout(() => {
+        roleSelectModal.classList.remove('opacity-0', 'pointer-events-none');
+        roleSelectModal.querySelector('.card').classList.remove('scale-95');
+    }, 10);
+};
+
+window.hideRoleSelectModal = function() {
+    const modal = document.getElementById('role-select-modal');
+    if (modal) {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        modal.querySelector('.card').classList.add('scale-95');
+    }
 }
 
 /**
- * Global function to generate example content, accessible from index.html.
- * This is the only global function that needs to be window-scoped.
+ * Final confirmation and execution of reward redemption.
+ * @param {string} rewardId The ID of the reward.
+ * @param {number} cost The point cost.
+ * @param {string} redeemingRole The role ('keeper' or 'nightingale') redeeming the reward.
+ */
+window.redeemRewardConfirmed = function(rewardId, cost, redeemingRole) {
+    
+    // Check if player has enough points
+    if (gameState.scores[redeemingRole] < cost) {
+        showModal("Insufficient Points", `${gameState.players[redeemingRole]} (The ${redeemingRole === 'keeper' ? 'Keeper' : 'Nightingale'}) does not have enough points to redeem this reward.`);
+        return;
+    }
+
+    const newScores = { ...gameState.scores };
+    newScores[redeemingRole] -= cost;
+    
+    // Set the reward as Active/Redeemed (Toggling active status implies completion/redemption)
+    const newActiveRewardIDs = { ...gameState.activeRewardIDs };
+    newActiveRewardIDs[rewardId] = Date.now();
+    
+    updateGameState({ 
+        scores: newScores,
+        activeRewardIDs: newActiveRewardIDs 
+    });
+    
+    showModal("Reward Redeemed!", `Reward successfully redeemed by ${gameState.players[redeemingRole]}! **${cost}** points deducted.`);
+};
+
+/**
+ * Assigns a punishment to the *other* partner (whoever is not the one earning points).
+ * Since the system is collaborative, we assume the user clicking is assigning it.
+ * @param {string} punishmentId The ID of the punishment.
+ */
+window.assignPunishment = function(punishmentId) {
+    const punishment = gameState.punishments.find(p => p.id === punishmentId);
+    if (!punishment) return;
+
+    // Simple confirmation for now.
+    showModal(
+        "Confirm Assignment",
+        `Do you confirm assigning the punishment: **${punishment.title}**? This will be marked as active until completed.`,
+        () => {
+            const newActivePunishmentIDs = { ...gameState.activePunishmentIDs };
+            newActivePunishmentIDs[punishmentId] = Date.now();
+            updateGameState({ activePunishmentIDs: newActivePunishmentIDs });
+            showModal("Punishment Assigned", `The punishment **${punishment.title}** has been assigned and is now active.`);
+        }
+    );
+};
+
+/**
+ * Toggles a punishment's active status, marking it as either active or completed.
+ * @param {string} punishmentId The ID of the punishment.
+ */
+window.togglePunishmentActive = function(punishmentId) {
+    const isActive = !!gameState.activePunishmentIDs[punishmentId];
+    const newActivePunishmentIDs = { ...gameState.activePunishmentIDs };
+    
+    if (isActive) {
+        // Mark Completed
+        delete newActivePunishmentIDs[punishmentId];
+        showModal("Punishment Completed", "The assigned punishment has been marked as complete.");
+    } else {
+        // Mark Active
+        newActivePunishmentIDs[punishmentId] = Date.now();
+        showModal("Punishment Activated", "The punishment is now marked as active.");
+    }
+    
+    updateGameState({ activePunishmentIDs: newActivePunishmentIDs });
+};
+
+
+// --- Example Data Generation ---
+
+/**
+ * Injects a random example habit, reward, or punishment into the form fields.
  */
 window.generateExample = function(type) {
     if (typeof EXAMPLE_DATABASE === 'undefined' || !EXAMPLE_DATABASE[type + 's']) {
@@ -702,20 +945,19 @@ window.generateExample = function(type) {
         document.getElementById('new-habit-points').value = example.points;
         document.getElementById('new-habit-times').value = 1; // Default to 1
         document.getElementById('new-habit-assignee').value = example.type;
-        window.toggleHabitForm(); // Ensure visible
+        window.toggleHabitForm(true); // Ensure visible
     } else if (type === 'reward') {
         document.getElementById('new-reward-title').value = example.title;
         document.getElementById('new-reward-cost').value = example.cost;
         document.getElementById('new-reward-desc').value = example.description;
-        window.toggleRewardForm(); // Ensure visible
+        window.toggleRewardForm(true); // Ensure visible
     } else if (type === 'punishment') {
         document.getElementById('new-punishment-title').value = example.title;
         document.getElementById('new-punishment-desc').value = example.description;
-        window.togglePunishmentForm(); // Ensure visible
+        window.togglePunishmentForm(true); // Ensure visible
     }
-}
+};
 
+// --- Initial Setup ---
 
-// --- Kick off the application ---
-// Start the Firebase initialization process when the script loads
-initializeAndAuthenticate();
+window.onload = initializeFirebase;
