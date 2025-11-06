@@ -26,36 +26,57 @@
             color: #b05c6c; /* Deep romantic red/plum */
         }
         .card {
-            background-color: #242429; /* Darker charcoal background for cards */
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
-            padding: 1.5rem;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .card:hover {
-            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.7);
+            background-color: #242429; /* Darker card background */
+            border: 1px solid #3c3c45; /* Subtle border */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
         }
         .btn-primary {
-            background-color: #b05c6c; /* Primary accent color */
-            color: #fff;
-            padding: 0.75rem 1.25rem;
-            transition: background-color 0.2s, transform 0.1s;
+            background-color: #b05c6c;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            transition: background-color 0.2s;
         }
         .btn-primary:hover {
-            background-color: #c77b8c;
-            transform: translateY(-1px);
+            background-color: #9a4a58;
         }
         .btn-secondary {
-            background-color: #404047; /* Darker grey for secondary actions */
+            background-color: #3c3c45;
             color: #d4d4dc;
-            padding: 0.75rem 1.25rem;
-            transition: background-color 0.2s, transform 0.1s;
+            padding: 0.75rem 1.5rem;
+            transition: background-color 0.2s;
         }
         .btn-secondary:hover {
-            background-color: #55555c;
-            transform: translateY(-1px);
+            background-color: #50505a;
         }
-        /* Custom scrollbar for a darker aesthetic */
+        .tab-button.active {
+            border-bottom: 3px solid #b05c6c;
+            color: #b05c6c;
+            font-weight: 700;
+        }
+        .tab-button {
+            transition: all 0.2s;
+        }
+        /* Style for the Ledger Table */
+        .ledger-table th {
+            background-color: #1a1a1d;
+            color: #b05c6c;
+            text-align: left;
+            padding: 1rem 0.75rem;
+            border-bottom: 2px solid #3c3c45;
+            font-family: 'Cinzel', serif;
+        }
+        .ledger-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #3c3c45;
+            vertical-align: middle;
+        }
+        /* Utility for the delicate text */
+        .delicate-text {
+            color: #9a9a9f;
+            font-style: italic;
+        }
+        /* Custom scrollbar for an intimate feel */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -63,207 +84,252 @@
             background: #1a1a1d;
         }
         ::-webkit-scrollbar-thumb {
-            background: #404047;
+            background: #4a4a50;
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #55555c;
-        }
-        /* Style for the Modal (Hidden by default) */
-        #modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: none; /* Hidden by default */
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
-        }
-        #modal-content {
-            background-color: #242429;
-            color: #d4d4dc;
-            padding: 2rem;
-            border-radius: 1rem;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+            background: #b05c6c;
         }
     </style>
-</head>
-<body class="p-4 md:p-8">
 
-    <!-- Modal for Alerts/Confirmations -->
-    <div id="modal-overlay">
-        <div id="modal-content">
-            <h3 id="modal-title" class="text-xl mb-4 font-bold">Alert</h3>
-            <p id="modal-message" class="mb-6"></p>
-            <div class="flex justify-end space-x-3">
-                <button id="modal-cancel-btn" class="btn-secondary rounded-lg font-sans font-semibold hidden">Cancel</button>
-                <button id="modal-confirm-btn" class="btn-primary rounded-lg font-sans font-semibold">OK</button>
-            </div>
+</head>
+<body class="p-4 sm:p-8">
+
+    <!-- Modal for Alerts (No alert() allowed) -->
+    <div id="app-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="bg-[#242429] card p-6 w-full max-w-sm rounded-xl shadow-2xl">
+            <h3 id="modal-title" class="text-xl font-cinzel mb-4 text-center"></h3>
+            <p id="modal-message" class="text-white mb-6 text-center"></p>
+            <button onclick="window.closeModal()" class="btn-primary w-full rounded-lg font-sans font-semibold">Understood</button>
         </div>
     </div>
-
-    <div class="max-w-4xl mx-auto">
-        
-        <!-- Header -->
-        <header class="text-center mb-12">
-            <h1 class="text-4xl md:text-6xl font-bold mb-2 tracking-wider">The Nightingale Ledger</h1>
-            <p class="text-lg italic text-gray-400">A Shared Accountability System</p>
+    
+    <!-- Main Content -->
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-5xl font-extrabold mb-2 text-[#e0e0e6]">The Nightingale Ledger</h1>
+            <p class="text-xl text-gray-400 font-playfair italic">A Shared System of Accountability & Reward</p>
         </header>
 
-        <!-- Player Setup -->
-        <section class="card mb-12">
-            <h2 class="text-2xl font-bold mb-4">Player Roles & Scores</h2>
-            <div id="player-setup" class="space-y-4">
-                <!-- Inputs for Player Names -->
-                <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4">
-                    <div class="flex-1">
-                        <label for="keeper-name" class="block mb-1 text-sm text-[#b05c6c]">The Keeper (Points Earned)</label>
-                        <input type="text" id="keeper-name" placeholder="Keeper Name" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" onchange="window.savePlayerName('keeper', this.value)">
-                    </div>
-                    <div class="flex-1">
-                        <label for="nightingale-name" class="block mb-1 text-sm text-[#b05c6c]">The Nightingale (Points Redeemed)</label>
-                        <input type="text" id="nightingale-name" placeholder="Nightingale Name" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" onchange="window.savePlayerName('nightingale', this.value)">
-                    </div>
-                </div>
-
-                <!-- Score Display and Reset Button -->
-                <div class="flex flex-col md:flex-row items-center justify-between pt-4 border-t border-[#3c3c45]">
-                    <div class="flex space-x-6 text-xl font-sans font-semibold">
-                        <p>Keeper Score: <span id="keeper-score" class="text-green-400">0</span></p>
-                        <p>Nightingale Score: <span id="nightingale-score" class="text-red-400">0</span></p>
-                    </div>
-                    <button onclick="window.showResetModal()" class="btn-secondary rounded-lg font-sans font-semibold mt-4 md:mt-0">Reset Ledger</button>
-                </div>
+        <!-- Scoreboard & Player Names -->
+        <section class="card p-6 mb-8 rounded-xl grid grid-cols-2 gap-4 text-center">
+            
+            <!-- Keeper's Score -->
+            <div class="border-r border-[#3c3c45] pr-4">
+                <h3 class="text-2xl mb-1 text-[#b05c6c]">The Keeper (Discipline)</h3>
+                <p id="keeper-name" class="text-lg text-gray-400 font-sans mb-3">User 1</p>
+                <div class="text-4xl font-cinzel font-bold text-white" id="keeper-score">0</div>
             </div>
+
+            <!-- Nightingale's Score -->
+            <div class="pl-4">
+                <h3 class="text-2xl mb-1 text-[#b05c6c]">The Nightingale (Reward)</h3>
+                <p id="nightingale-name" class="text-lg text-gray-400 font-sans mb-3">User 2</p>
+                <div class="text-4xl font-cinzel font-bold text-white" id="nightingale-score">0</div>
+            </div>
+
         </section>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Habit Definition Section -->
-            <section class="card">
-                <h2 class="text-2xl font-bold mb-4 flex justify-between items-center">
-                    Habit Definitions 
-                    <button onclick="window.toggleHabitForm()" class="btn-primary rounded-lg font-sans font-semibold text-sm py-2 px-4">Add Habit</button>
-                </h2>
-
-                <!-- Add Habit Form (Hidden by Default) -->
-                <div id="add-habit-form" class="bg-[#1a1a1d] p-4 rounded-lg mb-6 space-y-3 hidden">
-                    <h3 class="text-lg font-semibold text-gray-300">New Habit</h3>
-                    <textarea id="new-habit-desc" placeholder="Habit description (e.g., 'Finish today's high-priority work task by 5 PM')." class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-16"></textarea>
-                    
-                    <div class="flex space-x-3">
-                        <input type="number" id="new-habit-points" placeholder="Points" value="10" min="1" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                        <input type="number" id="new-habit-times" placeholder="Times/Day" value="1" min="1" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                        <select id="new-habit-assignee" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                            <option value="keeper">Keeper</option>
-                            <option value="nightingale">Nightingale</option>
-                        </select>
-                    </div>
-
-                    <div class="flex space-x-3">
-                        <button onclick="window.generateExample('habit')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                        <button onclick="window.addHabit()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Habit</button>
-                    </div>
-                </div>
-
-                <!-- Habit List -->
-                <div id="habits-list" class="space-y-3">
-                    <p class="text-center py-4 text-gray-500 italic" id="habits-loading">No habits defined yet.</p>
-                </div>
-            </section>
-            
-            <!-- Daily Log and Tally (Future Section) -->
-            <section class="card">
-                <h2 class="text-2xl font-bold mb-4">Daily Tracker</h2>
-
-                <!-- Daily Status/Scoreboard -->
-                <div id="daily-status" class="mb-6 space-y-4">
-                    <p class="text-lg font-sans font-semibold text-gray-300">Mark habits as complete or incomplete below.</p>
-                </div>
-
-                <!-- Habit Checklists - Rendered by JavaScript -->
-                <div id="daily-habits-checklist" class="space-y-3">
-                    <p class="text-center py-4 text-gray-500 italic">Load a habit definition to begin tracking.</p>
-                </div>
-
-                <div class="mt-6 pt-4 border-t border-[#3c3c45]">
-                    <h3 class="text-lg font-semibold text-gray-300 mb-3">Today's Result</h3>
-                    <div class="flex justify-between items-center text-xl font-sans font-semibold">
-                        <p>Points Earned: <span id="daily-earned" class="text-green-400">0</span></p>
-                        <p>Points Lost: <span id="daily-lost" class="text-red-400">0</span></p>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Rewards Section -->
-            <section class="card">
-                <h2 class="text-2xl font-bold mb-4 flex justify-between items-center">
-                    Reward Catalog
-                    <button onclick="window.toggleRewardForm()" class="btn-primary rounded-lg font-sans font-semibold text-sm py-2 px-4">Add Reward</button>
-                </h2>
-                
-                <!-- Add Reward Form (Hidden by Default) -->
-                <div id="add-reward-form" class="bg-[#1a1a1d] p-4 rounded-lg mb-6 space-y-3 hidden">
-                    <h3 class="text-lg font-semibold text-gray-300">New Reward</h3>
-                    <input type="text" id="new-reward-title" placeholder="Reward Title (e.g., 'A Quiet Afternoon')" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <input type="number" id="new-reward-cost" placeholder="Point Cost" value="100" min="1" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <textarea id="new-reward-desc" placeholder="Detailed description of the reward and its terms..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
-                    <div class="flex space-x-3">
-                        <button onclick="window.generateExample('reward')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                        <button onclick="window.addReward()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Reward</button>
-                    </div>
-                </div>
-
-                <!-- Reward List -->
-                <div id="rewards-list" class="space-y-3">
-                    <p class="text-center py-4 text-gray-500 italic" id="rewards-loading">No rewards defined yet.</p>
-                </div>
-            </section>
-            
-            <!-- Punishments Section -->
-            <section class="card">
-                <h2 class="text-2xl font-bold mb-4 flex justify-between items-center">
-                    Consequence Registry
-                    <button onclick="window.togglePunishmentForm()" class="btn-primary rounded-lg font-sans font-semibold text-sm py-2 px-4">Add Consequence</button>
-                </h2>
-
-                <!-- Add Punishment Form (Hidden by Default) -->
-                <div id="add-punishment-form" class="bg-[#1a1a1d] p-4 rounded-lg mb-6 space-y-3 hidden">
-                    <h3 class="text-lg font-semibold text-gray-300">New Consequence</h3>
-                    <input type="text" id="new-punishment-title" placeholder="Consequence Title (e.g., 'The Hand-Written Apology')" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <textarea id="new-punishment-desc" placeholder="Detailed description of the punishment..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
-                    <div class="flex space-x-3">
-                        <button onclick="window.generateExample('punishment')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                        <button onclick="window.addPunishment()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Punishment</button>
-                    </div>
-                </div>
-
-                <!-- Punishment List -->
-                <div id="punishments-list" class="space-y-3">
-                    <p class="text-center py-4 text-gray-500 italic" id="punishments-loading">No punishments defined yet.</p>
-                </div>
-
-            </section>
-        </div>
         
-        <!-- Debug/Footer Info -->
-        <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500">
-            <p>User ID: <span id="current-user-id">...</span> | App ID: <span id="current-app-id">...</span></p>
-        </footer>
+        <!-- Main Tabs -->
+        <div class="bg-[#1a1a1d] rounded-xl shadow-lg">
+            <!-- Tab Headers -->
+            <nav class="flex border-b border-[#3c3c45]">
+                <button id="tab-ledger-btn" onclick="window.showTab('ledger')" class="tab-button flex-1 p-4 text-center text-lg font-cinzel active">The Ledger</button>
+                <button id="tab-definitions-btn" onclick="window.showTab('definitions')" class="tab-button flex-1 p-4 text-center text-lg font-cinzel">Definitions</button>
+                <button id="tab-rewards-btn" onclick="window.showTab('rewards')" class="tab-button flex-1 p-4 text-center text-lg font-cinzel">Rewards & Punishments</button>
+            </nav>
 
-    </div>
+            <!-- Tab Content -->
+            <div id="tab-content" class="p-6">
+                <!-- 1. The Ledger Tab -->
+                <section id="tab-ledger" class="space-y-8">
+                    <h2 class="text-3xl mb-4">Current Week's Accountability</h2>
 
-    <!-- External JavaScript Imports -->
-    <!-- 1. The data definitions must load first -->
-    <script src="./examples.js"></script>
-    <!-- 2. The firebase config must load second -->
-    <script src="./firebase_config.js"></script>
-    <!-- 3. The main application script loads last -->
-    <script type="module" src="./script.js"></script>
+                    <!-- Habit Tracker -->
+                    <div class="card p-5 rounded-xl">
+                        <h3 class="text-xl mb-4 flex justify-between items-center">
+                            Habit Tracker
+                            <button onclick="window.addHabitEntry()" class="btn-primary rounded-full text-sm py-1 px-3 font-sans font-semibold">New Entry</button>
+                        </h3>
+                        <div id="habit-entries-list">
+                            <table class="w-full ledger-table">
+                                <thead>
+                                    <tr>
+                                        <th class="w-1/4">Habit</th>
+                                        <th class="w-1/4">Assigned To</th>
+                                        <th class="w-1/4">Status</th>
+                                        <th class="w-1/4 text-right">Points</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="habit-entries-tbody">
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-gray-500 italic" id="entries-loading">No entries recorded yet.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
-</body>
+                    <!-- Reward Redemption & Punishment Log -->
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <!-- Reward Redemption Log -->
+                        <div class="card p-5 rounded-xl">
+                            <h3 class="text-xl mb-4 flex justify-between items-center">
+                                Reward Redemption Log
+                                <button onclick="window.addLogEntry('reward')" class="btn-primary rounded-full text-sm py-1 px-3 font-sans font-semibold">Redeem Reward</button>
+                            </h3>
+                            <div id="reward-log-list">
+                                <table class="w-full ledger-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Reward</th>
+                                            <th class="w-1/4 text-right">Cost</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reward-log-tbody">
+                                        <tr>
+                                            <td colspan="2" class="text-center py-4 text-gray-500 italic">No rewards redeemed.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Punishment Log -->
+                        <div class="card p-5 rounded-xl">
+                            <h3 class="text-xl mb-4 flex justify-between items-center">
+                                Punishment Log
+                                <button onclick="window.addLogEntry('punishment')" class="btn-primary rounded-full text-sm py-1 px-3 font-sans font-semibold">Apply Punishment</button>
+                            </h3>
+                            <div id="punishment-log-list">
+                                <table class="w-full ledger-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Punishment</th>
+                                            <th class="w-1/4 text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="punishment-log-tbody">
+                                        <tr>
+                                            <td colspan="2" class="text-center py-4 text-gray-500 italic">No punishments logged.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- 2. The Definitions Tab -->
+                <section id="tab-definitions" class="hidden space-y-8">
+                    <h2 class="text-3xl mb-6">Define the System Parameters</h2>
+
+                    <!-- Habit Definition Section -->
+                    <div class="card p-5 rounded-xl">
+                        <h3 class="text-2xl mb-4">Habit Definitions</h3>
+                        <button onclick="window.toggleHabitForm()" class="btn-secondary rounded-lg font-sans font-semibold mb-4 w-full">Define a New Habit</button>
+                        
+                        <!-- Habit Form (Initially Hidden) -->
+                        <div id="new-habit-form" class="hidden p-4 mb-4 bg-[#1a1a1d] rounded-lg border border-[#3c3c45] space-y-3">
+                            <input type="text" id="new-habit-desc" placeholder="Habit description (e.g., 'Do 20 min of yoga')..." class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                            <div class="flex space-x-3">
+                                <input type="number" id="new-habit-points" placeholder="Points" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="10">
+                                <input type="number" id="new-habit-times" placeholder="Times/Week" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="1">
+                                <select id="new-habit-assignee" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                                    <option value="keeper">The Keeper</option>
+                                    <option value="nightingale">The Nightingale</option>
+                                </select>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button onclick="window.generateExample('habit')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
+                                <button onclick="window.addHabitDefinition()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Habit</button>
+                            </div>
+                        </div>
+
+                        <!-- Habit List -->
+                        <div id="habit-definitions-list" class="space-y-3">
+                            <p class="text-center py-4 text-gray-500 italic" id="habits-loading">No habits defined yet.</p>
+                        </div>
+                    </div>
+
+                    <!-- Player Name Configuration -->
+                    <div class="card p-5 rounded-xl">
+                        <h3 class="text-2xl mb-4">Player Names</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label for="config-keeper-name" class="block text-sm font-sans mb-1 delicate-text">Keeper's Name (e.g., 'Cormac')</label>
+                                <input type="text" id="config-keeper-name" onchange="window.updatePlayerName('keeper', this.value)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" placeholder="Keeper Name">
+                            </div>
+                            <div>
+                                <label for="config-nightingale-name" class="block text-sm font-sans mb-1 delicate-text">Nightingale's Name (e.g., 'Sarah')</label>
+                                <input type="text" id="config-nightingale-name" onchange="window.updatePlayerName('nightingale', this.value)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" placeholder="Nightingale Name">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. Rewards & Punishments Tab -->
+                <section id="tab-rewards" class="hidden grid md:grid-cols-2 gap-8">
+                    <!-- Rewards Section -->
+                    <div class="card p-5 rounded-xl">
+                        <h2 class="text-3xl mb-6">Reward Pool</h2>
+                        <button onclick="window.toggleRewardForm()" class="btn-secondary rounded-lg font-sans font-semibold mb-4 w-full">Define a New Reward</button>
+                        
+                        <!-- Reward Form (Initially Hidden) -->
+                        <div id="new-reward-form" class="hidden p-4 mb-4 bg-[#1a1a1d] rounded-lg border border-[#3c3c45] space-y-3">
+                            <input type="text" id="new-reward-title" placeholder="Reward Title (e.g., 'Movie Night Pass')..." class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                            <input type="number" id="new-reward-cost" placeholder="Cost (Points)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="50">
+                            <textarea id="new-reward-desc" placeholder="Detailed description of the reward..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
+                            <div class="flex space-x-3">
+                                <button onclick="window.generateExample('reward')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
+                                <button onclick="window.addReward()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Reward</button>
+                            </div>
+                        </div>
+
+                        <!-- Reward List -->
+                        <div id="rewards-list" class="space-y-3">
+                            <p class="text-center py-4 text-gray-500 italic" id="rewards-loading">No rewards defined yet.</p>
+                        </div>
+                    </div>
+
+                    <!-- Punishments Section -->
+                    <div class="card p-5 rounded-xl">
+                        <h2 class="text-3xl mb-6">Punishment Ledger</h2>
+                        <button onclick="window.togglePunishmentForm()" class="btn-secondary rounded-lg font-sans font-semibold mb-4 w-full">Define a New Punishment</button>
+                        
+                        <!-- Punishment Form (Initially Hidden) -->
+                        <div id="new-punishment-form" class="hidden p-4 mb-4 bg-[#1a1a1d] rounded-lg border border-[#3c3c45] space-y-3">
+                            <input type="text" id="new-punishment-title" placeholder="Punishment Title (e.g., 'The Dish Detail')..." class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                            <textarea id="new-punishment-desc" placeholder="Detailed description of the punishment..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
+                            <div class="flex space-x-3">
+                                <button onclick="window.generateExample('punishment')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
+                                <button onclick="window.addPunishment()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Punishment</button>
+                            </div>
+                        </div>
+
+                        <!-- Punishment List -->
+                        <div id="punishments-list" class="space-y-3">
+                            <p class="text-center py-4 text-gray-500 italic" id="punishments-loading">No punishments defined yet.</p>
+                        </div>
+
+                    </section>
+                </div>
+                
+                <!-- Debug/Footer Info -->
+                <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500">
+                    <p>User ID: <span id="current-user-id">...</span> | App ID: <span id="current-app-id">...</span></p>
+                </footer>
+
+            </div>
+
+            <!-- External JavaScript Imports -->
+            <!-- 1. The data definitions must load first -->
+            <script src="./examples.js"></script>
+            
+            <!-- 2. The main script loads last -->
+            <!-- We REMOVED the firebase_config.js file import here as it caused a lexical declaration conflict -->
+            <script type="module" src="./script.js"></script>
+        </div>
+    </body>
 </html>
