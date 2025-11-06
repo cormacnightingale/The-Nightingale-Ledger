@@ -3,1154 +3,244 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Nightingale Ledger: Shared Ledger System</title>
-
+    <title>The Nightingale Ledger: Habit and Reward Tracker</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Fonts for the intimate, themed style -->
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Fonts for the intimate, goth style -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital@0;1;1@0;1&display=swap" rel="stylesheet">
+    
     <style>
-        /* Base Intimate Styling */
+        /* Custom Styles - Kept inline as they are aesthetic and crucial for the theme */
         body {
-            font-family: 'Playfair Display', serif;
-            background: linear-gradient(to bottom right, #0a0a0c 0%, #1a1a1d 100%); /* Deep charcoal to near black gradient */
+            font-family: 'Playfair Display', serif; /* Serif font for body */
+            background: linear-gradient(to bottom, #1a1a1d 0%, #0d0d0f 100%); /* Deep charcoal to near black gradient */
             min-height: 100vh;
             color: #d4d4dc; /* Light grey for text */
             margin: 0;
             padding: 0;
-            overflow-x: hidden;
+            overflow-x: hidden; /* Prevent horizontal scroll from decorative elements */
+            position: relative; /* For absolutely positioned decorative elements */
         }
         h1, h2, h3 {
-            font-family: 'Cinzel', serif;
+            font-family: 'Cinzel', serif; /* Elegant font for headings */
             color: #b05c6c; /* Deep romantic red/plum */
         }
+        .text-xl, .text-2xl, .text-3xl {
+            /* Ensures Cinzel is used for these headings too */
+            font-family: 'Cinzel', serif;
+        }
         .card {
-            background-color: #24242c; /* Darker secondary background for cards */
-            border: 1px solid #3c3c45;
+            background-color: #1c1c1e; /* Slightly lighter charcoal background for cards */
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333333; /* Subtle border */
         }
-        /* Thematic Button Styles - Larger touch targets for mobile */
         .btn-primary {
-            background-color: #b05c6c;
-            color: #1a1a1d;
+            background-color: #5d2b3b;
+            color: #fce4ec;
             transition: all 0.2s;
-            padding: 0.75rem 1.5rem; /* Increased padding */
         }
-        .btn-primary:hover:not(:disabled) {
-            background-color: #d47e8c;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        .btn-primary:hover {
+            background-color: #7b3a4d;
+            box-shadow: 0 0 10px rgba(176, 92, 108, 0.5);
         }
-        .btn-secondary {
-            background-color: #3c3c45;
+        .input-style {
+            background-color: #2a2a2c;
+            border: 1px solid #444444;
             color: #d4d4dc;
-            padding: 0.75rem 1.5rem; /* Increased padding */
         }
-        .btn-secondary:hover:not(:disabled) {
-            background-color: #555562;
+        /* Custom scrollbar for better visual integration */
+        .list-container::-webkit-scrollbar {
+            width: 8px;
         }
-        /* Disabled state styling */
-        .btn-primary:disabled, .btn-secondary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+        .list-container::-webkit-scrollbar-track {
+            background: #1a1a1d;
         }
-        /* Input focus styles */
-        input:focus, select:focus, textarea:focus {
-            border-color: #b05c6c;
-            box-shadow: 0 0 0 1px #b05c6c;
-            outline: none; /* Remove default browser focus outline */
+        .list-container::-webkit-scrollbar-thumb {
+            background: #b05c6c;
+            border-radius: 4px;
         }
-        /* Ensure input heights are generous for touch */
-        input[type="text"], input[type="number"], select, textarea {
-            min-height: 44px;
+        .list-container::-webkit-scrollbar-thumb:hover {
+            background: #d47e8e;
         }
-        /* Ensure responsive layout for forms/scores */
-        @media (max-width: 768px) {
-            .grid-cols-2 {
-                grid-template-columns: 1fr;
-            }
-        }
-        /* Spinner for loading state */
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-top: 4px solid #b05c6c;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-        /* Small spinner for buttons */
-        .spinner.h-4 {
-            width: 1rem;
-            height: 1rem;
-            border-width: 3px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <!-- Modal for Messages/Confirmations -->
-    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center">
-        <div class="bg-[#1a1a1d] card p-6 rounded-xl w-11/12 max-w-sm">
-            <h3 id="modal-title" class="text-xl mb-3 text-white font-bold font-sans"></h3>
-            <p id="modal-message" class="text-sm mb-4"></p>
-            <div id="modal-actions" class="flex space-x-3 w-full">
-                <!-- Buttons injected by JavaScript -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Notification Container (For non-critical feedback with undo) -->
-    <div id="toast-notification" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 opacity-0 transition-opacity duration-300 z-50 p-3 rounded-xl bg-gray-800 border border-gray-700 shadow-xl max-w-sm flex items-center justify-between space-x-4 pointer-events-none">
-        <p id="toast-message" class="text-sm text-white"></p>
-        <button id="toast-undo-btn" class="text-sm font-semibold text-yellow-400 hover:text-yellow-300 transition-colors pointer-events-auto" onclick="window.undoAction()">UNDO</button>
-    </div>
-
-
-    <!-- 0. Ledger Selection Modal (Appears before content) -->
-    <div id="ledger-selection-modal" class="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center">
-        <div id="selection-content" class="bg-[#1a1a1d] card p-6 rounded-xl w-11/12 max-w-lg text-center">
-            <h2 class="text-3xl mb-6 text-white font-bold">Access The Nightingale Ledger</h2>
-
-            <!-- Loading Spinner -->
-            <p id="auth-loading" class="text-center text-gray-400 mb-6 flex items-center justify-center space-x-2">
-                <span class="spinner"></span> Authenticating Anonymously...
-            </p>
-
-            <div id="selection-options" class="hidden">
-                <!-- Host New Ledger -->
-                <div class="mb-6">
-                    <p class="text-gray-300 mb-2">Start a new shared ledger and get a unique code.</p>
-                    <button onclick="window.hostNewLedger()" class="btn-primary w-full text-base rounded-lg font-sans font-semibold">
-                        Host New Ledger
-                    </button>
-                </div>
-
-                <div class="border-t border-[#3c3c45] pt-6">
-                    <p class="text-gray-300 mb-2">Join an existing shared ledger with a code.</p>
-
-                    <input type="text" id="join-code-input" placeholder="Enter 6-digit Ledger Code (e.g., A5B1C2)" maxlength="6" class="w-full p-3 mb-3 text-center uppercase tracking-widest bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white font-mono text-lg">
-
-                    <button onclick="window.joinExistingLedger()" class="btn-secondary w-full text-base rounded-lg font-sans font-semibold">
-                        Join Ledger
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 1. Name Configuration Modal (Set Player Names) -->
-    <div id="name-config-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center">
-        <div class="bg-[#1a1a1d] card p-6 rounded-xl w-11/12 max-w-md">
-            <h3 class="text-xl mb-4 text-white font-bold">Set Usernames for the Ledger</h3>
-            <p class="text-sm mb-3">Please define the two names that will share this ledger.</p>
-
-            <label for="player1-input" class="block text-sm mb-1 text-gray-400">User 1 (Keeper Role)</label>
-            <input type="text" id="player1-input" placeholder="e.g., Alex" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-
-            <label for="player2-input" class="block text-sm mb-1 text-gray-400">User 2 (Nightingale Role)</label>
-            <input type="text" id="player2-input" placeholder="e.g., Jamie" class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-
-            <button onclick="window.savePlayerNames()" class="btn-primary w-full rounded-lg font-sans font-semibold">
-                Save Names
-            </button>
-        </div>
-    </div>
-
-    <!-- Main Content (Hidden until Ledger is selected) -->
-    <div id="main-content" class="hidden">
-
-        <!-- Main Header -->
-        <header class="text-center mb-6">
-            <h1 class="text-4xl md:text-5xl font-bold mb-2 tracking-widest">The Nightingale Ledger</h1>
-            <p class="text-xl italic text-[#d47e8c]">A Shared Habit and Reward System</p>
-        </header>
-
-        <!-- Ledger Code and Config Display (Prominent on Mobile) -->
-        <div id="auth-info" class="mb-6 p-4 card rounded-xl text-center md:flex md:justify-between md:items-center">
-            <div>
-                <p class="text-xs text-gray-400 uppercase tracking-widest">Ledger Code (Share this!)</p>
-                <p class="text-3xl md:text-4xl font-bold font-mono text-[#d47e8c] break-all mt-1" id="current-ledger-code">...loading</p>
-            </div>
-            <div class="flex space-x-3 justify-center md:justify-end mt-3 md:mt-0">
-                <button onclick="window.confirmResetHabits()" class="btn-secondary p-2 text-sm rounded-lg font-semibold shadow-lg">
-                    Reset Daily Habits
-                </button>
-                <button onclick="window.showNameConfigModal()" class="btn-secondary p-2 text-sm rounded-lg font-semibold shadow-lg">
-                    Rename Users
-                </button>
-            </div>
-        </div>
-
-        <!-- Score Board -->
-        <div id="score-board" class="grid grid-cols-2 gap-4 mb-8 text-center">
-            <div class="card p-4 rounded-xl">
-                <h2 class="text-xl mb-1" id="player1-name-display"></h2>
-                <p class="text-3xl md:text-4xl font-bold font-sans text-green-400" id="keeper-score">0</p>
-                <p class="text-xs italic text-gray-400">Keeper Points</p>
-            </div>
-            <div class="card p-4 rounded-xl">
-                <h2 class="text-xl mb-1" id="player2-name-display"></h2>
-                <p class="text-3xl md:text-4xl font-bold font-sans text-green-400" id="nightingale-score">0</p>
-                <p class="text-xs italic text-gray-400">Nightingale Points</p>
-            </div>
-        </div>
-
-        <!-- Main Content Grid (Habits, Rewards, Punishments) -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-            <!-- 2. HABITS (Daily Tasks) - Takes full width on mobile -->
-            <section class="lg:col-span-2">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl md:text-3xl">Habits & Daily Tasks</h2>
-                    <button onclick="window.toggleHabitForm()" class="btn-primary text-sm rounded-lg font-semibold shadow-lg">
-                        + Add Habit
-                    </button>
-                </div>
-
-                <!-- Habit Add Form -->
-                <div id="habit-form" class="card p-4 rounded-xl mb-6 hidden">
-                    <h3 class="text-lg mb-3 text-white">Create a New Habit</h3>
-                    <input type="text" id="new-habit-desc" placeholder="Habit description (e.g., Daily workout)" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <div class="flex flex-col sm:flex-row sm:space-x-3 mb-3 space-y-3 sm:space-y-0">
-                        <input type="number" id="new-habit-points" placeholder="Points (e.g., 10)" class="w-full sm:w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="10">
-                        <input type="number" id="new-habit-times" placeholder="Times/Day (e.g., 1)" class="w-full sm:w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="1" min="1">
-                        <select id="new-habit-assignee" class="w-full sm:w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                            <option value="keeper">Assign to User 1</option>
-                            <option value="nightingale">Assign to User 2</option>
-                        </select>
-                    </div>
-                    <div class="flex space-x-3">
-                        <button onclick="window.generateExample('habit')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                        <button onclick="window.addHabit()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Add Habit</button>
-                    </div>
-                </div>
-
-                <!-- Habit List -->
-                <div id="habits-list" class="space-y-4">
-                    <p class="text-center py-8 text-gray-500 italic" id="habits-loading">Loading habits...</p>
-                </div>
-            </section>
-
-            <!-- 3. REWARDS & PUNISHMENTS - Stacks below Habits on mobile -->
-            <section class="lg:col-span-1">
-
-                <!-- REWARDS -->
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl md:text-3xl">Rewards</h2>
-                    <button onclick="window.toggleRewardForm()" class="btn-secondary text-sm rounded-lg font-semibold shadow-lg">
-                        + Define
-                    </button>
-                </div>
-
-                <!-- Reward Add Form -->
-                <div id="reward-form" class="card p-4 rounded-xl mb-6 hidden">
-                    <h3 class="text-lg mb-3 text-white">Design New Reward</h3>
-                    <input type="text" id="new-reward-title" placeholder="Title (e.g., A Massage)" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <input type="number" id="new-reward-cost" placeholder="Cost (Points)" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="50">
-                    <textarea id="new-reward-desc" placeholder="Detailed description..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
-                    <div class="flex space-x-3">
-                        <button onclick="window.generateExample('reward')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                        <button onclick="window.addReward()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Reward</button>
-                    </div>
-                </div>
-
-                <!-- Reward List -->
-                <div id="rewards-list" class="space-y-3 mb-10">
-                    <p class="text-center py-4 text-gray-500 italic" id="rewards-loading">No rewards defined yet.</p>
-                </div>
-
-                <!-- PUNISHMENTS -->
-                <div class="flex justify-between items-center mb-4 mt-8">
-                    <h2 class="text-2xl md:text-3xl">Punishments</h2>
-                    <button onclick="window.togglePunishmentForm()" class="btn-secondary text-sm rounded-lg font-semibold shadow-lg">
-                        + Define
-                    </button>
-                </div>
-
-                <!-- Punishment Add Form -->
-                <div id="punishment-form" class="card p-4 rounded-xl mb-6 hidden">
-                    <h3 class="text-lg mb-3 text-white">Define New Punishment</h3>
-                    <input type="text" id="new-punishment-title" placeholder="Title (e.g., A Task)" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <textarea id="new-punishment-desc" placeholder="Detailed description of the punishment..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
-                    <div class="flex space-x-3">
-                        <button onclick="window.generateExample('punishment')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                        <button onclick="window.addPunishment()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Punishment</button>
-                    </div>
-                </div>
-
-                <!-- Punishment List -->
-                <div id="punishments-list" class="space-y-3">
-                    <p class="text-center py-4 text-gray-500 italic" id="punishments-loading">No punishments defined yet.</p>
-                </div>
-
-            </section>
-        </div>
-
-        <!-- Debug/Footer Info -->
-        <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500">
-            <p>Ledger is running in a public, anonymous mode suitable for GitHub Pages.</p>
-            <p>User ID: <span id="current-user-id">...</span></p>
-        </footer>
-
-    </div>
-
-    <!-- MAIN APPLICATION LOGIC (GitHub Pages Ready) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // =========================================================================
-        // 1. FIREBASE CONFIGURATION (ACTION REQUIRED)
-        // =========================================================================
-
-        /**
-         * IMPORTANT: REPLACE 'YOUR_FIREBASE_CONFIG_OBJECT_HERE' with your
-         * actual Firebase project credentials from the Firebase Console.
-         * The structure should look like:
-         * const firebaseConfig = {
-         * apiKey: "...",
-         * authDomain: "...",
-         * projectId: "...",
-         * // ... other fields
-         * };
-         */
-        const firebaseConfig = {
-
-  apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc",
-
-  authDomain: "nightingaleledger-4627.firebaseapp.com",
-
-  projectId: "nightingaleledger-4627",
-
-  storageBucket: "nightingaleledger-4627.firebasestorage.app",
-
-  messagingSenderId: "299188208241",
-
-  appId: "1:299188208241:web:7bb086293357f4ec4691d0",
-
-  measurementId: "G-5WLM6RZQ0Y"
-
-};
-
-        // --- GLOBAL STATE & FIREBASE SETUP ---
-        let db;
-        let auth;
-        let userId = null;
-        let gameState = {};
-        let currentLedgerId = '';
-        let lastDeletedItem = null;
-        let lastDeletedItemCollection = null;
-
-        // Note: We use a hardcoded 'appId' for GitHub Pages since we don't have the canvas variable.
-        const APP_ID = 'nightingale-ledger-gh'; 
-        const LEDGER_COLLECTION = `artifacts/${APP_ID}/public/data/ledgers`; 
-        let GAME_STATE_PATH = '';
-        const GAME_STATE_DOC_ID = 'state'; 
-
-        // Helper functions for UI
-        const getEl = (id) => document.getElementById(id);
-
-        /**
-         * Standard error handler for Firebase and general app errors.
-         * @param {Error} error
-         * @param {string} message
-         */
-        function handleError(error, message = "An unexpected error occurred") {
-            console.error(message, error);
-            showModal("Error", `${message}: ${error.message || error}`);
-        }
-
-        /**
-         * Converts a string to a random 6-character alphanumeric code.
-         * @returns {string}
-         */
-        function generateLedgerId() {
-            const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ123456789';
-            let result = '';
-            for (let i = 0; i < 6; i++) {
-                result += characters.charAt(Math.floor(Math.random() * characters.length));
-            }
-            return result;
-        }
-
-        /**
-         * Initializes Firebase and handles initial anonymous authentication for GitHub.
-         */
-        window.initializeFirebase = async function() {
-            try {
-                if (typeof firebaseConfig === 'string' || !firebaseConfig.projectId) {
-                    throw new Error("Firebase config is missing or invalid. Please replace 'YOUR_FIREBASE_CONFIG_OBJECT_HERE' with your actual Firebase configuration object.");
-                }
-
-                // Initialize App
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                // Sign in anonymously for simple public use on GitHub Pages
-                await signInAnonymously(auth);
-
-                // Wait for auth state to be resolved
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        getEl('current-user-id').textContent = userId;
-                        // Hide loading and show selection options
-                        getEl('auth-loading').classList.add('hidden');
-                        getEl('selection-options').classList.remove('hidden');
-                    }
-                });
-            } catch (e) {
-                // If initialization fails, show the error immediately
-                handleError(e, "Initialization Error");
-            }
-        }
-
-
-        // =========================================================================
-        // 2. MODAL AND UI HELPERS
-        // =========================================================================
-
-        /**
-         * Displays a custom modal window (replaces alert/confirm).
-         */
-        function showModal(title, message, actions = [{ text: 'OK', style: 'btn-primary', action: () => hideModal() }]) {
-            const container = getEl('modal-container');
-            getEl('modal-title').textContent = title;
-            getEl('modal-message').innerHTML = message;
-            const actionsDiv = getEl('modal-actions');
-            actionsDiv.innerHTML = ''; // Clear previous actions
-
-            actions.forEach(action => {
-                const button = document.createElement('button');
-                button.textContent = action.text;
-                button.className = `${action.style} rounded-lg font-sans font-semibold flex-1`;
-                button.onclick = () => {
-                    action.action();
-                    if (action.text !== 'Cancel') hideModal();
-                };
-                actionsDiv.appendChild(button);
-            });
-
-            container.classList.remove('hidden');
-        }
-
-        function hideModal() {
-            getEl('modal-container').classList.add('hidden');
-        }
-
-        /**
-         * Displays a toast notification with an optional undo button.
-         */
-        function showToast(message, showUndo = false) {
-            const toast = getEl('toast-notification');
-            getEl('toast-message').textContent = message;
-
-            const undoBtn = getEl('toast-undo-btn');
-            undoBtn.style.display = showUndo ? 'inline-block' : 'none';
-
-            // Show toast
-            toast.classList.remove('opacity-0');
-            toast.classList.add('opacity-100', 'pointer-events-auto');
-
-            // Hide after 5 seconds if not undoable
-            if (!showUndo) {
-                setTimeout(() => {
-                    toast.classList.remove('opacity-100', 'pointer-events-auto');
-                    toast.classList.add('opacity-0');
-                }, 5000);
-            }
-        }
-
-        function hideToast() {
-            const toast = getEl('toast-notification');
-            toast.classList.remove('opacity-100', 'pointer-events-auto');
-            toast.classList.add('opacity-0');
-        }
+    <!-- Header and Player Stats -->
+    <header class="text-center mb-8">
+        <h1 class="text-4xl md:text-5xl font-bold mb-2">The Nightingale Ledger</h1>
+        <p class="text-lg italic text-zinc-400 mb-6">A Pact of Aspiration and Accountability</p>
+        <p id="player-id-display" class="text-xs text-zinc-600 mb-4 font-mono"></p>
         
-        window.undoAction = async function() {
-            if (!lastDeletedItem || !lastDeletedItemCollection) {
-                showModal("Error", "No recent action to undo.");
-                return;
-            }
-
-            hideToast();
-
-            try {
-                // The item will be added back to the array. Firestore handles the merge.
-                const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-                const currentItems = [...gameState[lastDeletedItemCollection]];
-                
-                // Add the item back to the list
-                const updatedItems = [...currentItems, lastDeletedItem];
-
-                // Use a dynamic property name for the update
-                const updatePayload = {};
-                updatePayload[lastDeletedItemCollection] = updatedItems;
-
-                await updateDoc(docRef, updatePayload);
-                showModal("Undo Successful", `${lastDeletedItem.title || lastDeletedItem.description} has been restored.`);
-            } catch (e) {
-                handleError(e, "Failed to undo action");
-            } finally {
-                // Clear the undo state regardless of success or failure
-                lastDeletedItem = null;
-                lastDeletedItemCollection = null;
-            }
-        }
-
-        window.toggleHabitForm = () => getEl('habit-form').classList.toggle('hidden');
-        window.toggleRewardForm = () => getEl('reward-form').classList.toggle('hidden');
-        window.togglePunishmentForm = () => getEl('punishment-form').classList.toggle('hidden');
-
-
-        // =========================================================================
-        // 3. LEDGER MANAGEMENT
-        // =========================================================================
-
-        /**
-         * Starts a new ledger, generates an ID, and sets up the initial state.
-         */
-        window.hostNewLedger = async function() {
-            const newLedgerId = generateLedgerId();
-            currentLedgerId = newLedgerId;
-            GAME_STATE_PATH = `${LEDGER_COLLECTION}/${currentLedgerId}/data`;
-
-            const initialState = {
-                ledgerId: currentLedgerId,
-                keeperName: 'User 1 (Keeper)',
-                nightingaleName: 'User 2 (Nightingale)',
-                keeperScore: 0,
-                nightingaleScore: 0,
-                habits: [],
-                rewards: [],
-                punishments: [],
-                // New field for daily reset logic
-                lastResetDate: new Date().toISOString().split('T')[0] // YYYY-MM-DD
-            };
-
-            try {
-                // Use a standard public doc to save the state
-                await setDoc(doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID), initialState);
-
-                // Save a simple ledger mapping in the top collection for lookup
-                await setDoc(doc(db, LEDGER_COLLECTION, currentLedgerId), { createdAt: new Date() });
-
-                setupLedger(currentLedgerId);
-                showNameConfigModal(); // Prompt to set names right away
-
-            } catch (e) {
-                handleError(e, "Failed to create new ledger");
-            }
-        };
-
-        /**
-         * Joins an existing ledger using a user-provided ID.
-         */
-        window.joinExistingLedger = async function() {
-            const joinCode = getEl('join-code-input').value.toUpperCase().trim();
-            if (joinCode.length !== 6) {
-                showModal("Invalid Code", "Please enter a 6-character ledger code.");
-                return;
-            }
-
-            // 1. Check if the ledger ID exists
-            const ledgerRef = doc(db, LEDGER_COLLECTION, joinCode);
-            const ledgerSnap = await getDoc(ledgerRef);
-
-            if (!ledgerSnap.exists()) {
-                showModal("Not Found", `The ledger code **${joinCode}** does not exist.`);
-                return;
-            }
-
-            // 2. Ledger exists, connect to it
-            currentLedgerId = joinCode;
-            GAME_STATE_PATH = `${LEDGER_COLLECTION}/${currentLedgerId}/data`;
-            setupLedger(currentLedgerId);
-        };
-
-        /**
-         * Final setup step: hides the selection modal and starts the data listener.
-         * @param {string} ledgerId
-         */
-        function setupLedger(ledgerId) {
-            getEl('current-ledger-code').textContent = ledgerId;
-            getEl('ledger-selection-modal').classList.add('hidden');
-            getEl('main-content').classList.remove('hidden');
-            startStateListener();
-        }
-
-        /**
-         * Opens the modal to configure player names.
-         */
-        window.showNameConfigModal = function() {
-            if (gameState.keeperName) getEl('player1-input').value = gameState.keeperName;
-            if (gameState.nightingaleName) getEl('player2-input').value = gameState.nightingaleName;
-            getEl('name-config-modal').classList.remove('hidden');
-        };
-
-        /**
-         * Saves the configured player names to Firestore.
-         */
-        window.savePlayerNames = async function() {
-            const keeperName = getEl('player1-input').value.trim() || 'User 1 (Keeper)';
-            const nightingaleName = getEl('player2-input').value.trim() || 'User 2 (Nightingale)';
-
-            if (!db || !currentLedgerId) {
-                showModal("Error", "Ledger not initialized.");
-                return;
-            }
-
-            try {
-                const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-                await updateDoc(docRef, {
-                    keeperName: keeperName,
-                    nightingaleName: nightingaleName,
-                });
-                getEl('name-config-modal').classList.add('hidden');
-                showModal("Success", "User names saved!");
-            } catch (e) {
-                handleError(e, "Failed to save player names");
-            }
-        };
-
-        /**
-         * Confirms and performs the daily habit reset.
-         */
-        window.confirmResetHabits = function() {
-            showModal(
-                "Reset Daily Habits?",
-                "This will set the current completion count of ALL habits back to 0, ready for a new day. **Point scores will NOT be affected.** Are you sure?",
-                [
-                    { text: 'Cancel', style: 'btn-secondary', action: () => hideModal() },
-                    { text: 'Reset Habits', style: 'btn-primary', action: () => resetDailyHabits() }
-                ]
-            );
-        };
-
-        /**
-         * Resets the daily count for all habits.
-         */
-        async function resetDailyHabits() {
-            const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
+        <div class="flex flex-wrap justify-center gap-4 md:gap-8 max-w-4xl mx-auto">
             
-            // Create a fresh array of habits with currentCount reset
-            const updatedHabits = (gameState.habits || []).map(h => ({
-                ...h,
-                currentCount: 0 // Reset the count
-            }));
-
-            try {
-                await updateDoc(docRef, {
-                    habits: updatedHabits,
-                    lastResetDate: new Date().toISOString().split('T')[0]
-                });
-                showModal("Habits Reset", "All daily habits have been reset to 0! Start tracking a new day.");
-            } catch (e) {
-                handleError(e, "Failed to reset habits");
-            }
-        }
-
-
-        // =========================================================================
-        // 4. DATA LISTENER (Real-Time Updates)
-        // =========================================================================
-
-        /**
-         * Sets up the Firestore real-time listener for the game state document.
-         */
-        function startStateListener() {
-            if (!db || !currentLedgerId) return;
-
-            const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-
-            onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    gameState = docSnap.data();
-                    renderUI();
-                } else {
-                    // This should only happen if the document is deleted externally
-                    handleError(new Error("Ledger document missing"), "The shared ledger data could not be found.");
-                }
-            }, (error) => {
-                handleError(error, "Real-time sync failed");
-            });
-        }
-
-        /**
-         * Rerenders all UI elements based on the current 'gameState'.
-         */
-        function renderUI() {
-            if (!gameState || !gameState.ledgerId) return;
-
-            // 1. Scores and Names
-            const keeperName = gameState.keeperName || 'User 1 (Keeper)';
-            const nightingaleName = gameState.nightingaleName || 'User 2 (Nightingale)';
-
-            getEl('player1-name-display').textContent = keeperName;
-            getEl('player2-name-display').textContent = nightingaleName;
-            getEl('keeper-score').textContent = gameState.keeperScore.toLocaleString();
-            getEl('nightingale-score').textContent = gameState.nightingaleScore.toLocaleString();
-
-            // Update select options for habit form
-            const assigneeSelect = getEl('new-habit-assignee');
-            assigneeSelect.innerHTML = `
-                <option value="keeper">Assign to ${keeperName}</option>
-                <option value="nightingale">Assign to ${nightingaleName}</option>
-            `;
-
-            // 2. Habits
-            renderHabits(gameState.habits || []);
-
-            // 3. Rewards
-            renderRewards(gameState.rewards || [], gameState.keeperScore, gameState.nightingaleScore);
-
-            // 4. Punishments
-            renderPunishments(gameState.punishments || []);
-        }
-
-        /**
-         * Renders the list of habits.
-         */
-        function renderHabits(habits) {
-            const listEl = getEl('habits-list');
-            listEl.innerHTML = '';
-            getEl('habits-loading').classList.add('hidden'); // Hide loading indicator
-
-            if (habits.length === 0) {
-                listEl.innerHTML = '<p class="text-center py-8 text-gray-500 italic">No habits defined. Time to start!</p>';
-                return;
-            }
-
-            habits.sort((a, b) => (a.assignee > b.assignee) ? 1 : -1);
-
-            habits.forEach(habit => {
-                const isKeeper = habit.assignee === 'keeper';
-                const userName = isKeeper ? gameState.keeperName : gameState.nightingaleName;
-                const progress = habit.currentCount || 0;
-                const max = habit.timesPerDay;
-                const progressPercent = (progress / max) * 100;
-                const isComplete = progress >= max;
-
-                const habitElement = document.createElement('div');
-                habitElement.className = `card p-4 rounded-xl flex items-center justify-between transition-opacity ${isComplete ? 'opacity-50' : ''}`;
-                habitElement.innerHTML = `
-                    <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-white truncate">${habit.description}</p>
-                        <p class="text-xs text-gray-400 mt-1">
-                            Assigned to: <span class="font-bold text-[#d47e8c]">${userName}</span> 
-                            | Points: <span class="font-bold text-green-400">${habit.points}</span>
-                        </p>
-                        <!-- Progress Bar -->
-                        <div class="mt-2 w-full bg-[#1a1a1d] rounded-full h-2.5">
-                            <div class="bg-green-500 h-2.5 rounded-full transition-all duration-500" style="width: ${progressPercent}%"></div>
-                        </div>
-                        <p class="text-xs text-gray-400 mt-1">${progress}/${max} completions today</p>
-                    </div>
-                    <div class="ml-4 flex items-center space-x-2">
-                        <button onclick="window.incrementHabit('${habit.id}', 1)" ${isComplete ? 'disabled' : ''} class="btn-primary w-10 h-10 text-xl rounded-full flex items-center justify-center disabled:opacity-50" title="Increment Habit">
-                            +
-                        </button>
-                        <button onclick="window.incrementHabit('${habit.id}', -1)" ${progress <= 0 ? 'disabled' : ''} class="btn-secondary w-10 h-10 text-xl rounded-full flex items-center justify-center disabled:opacity-50" title="Decrement Habit">
-                            -
-                        </button>
-                        <button onclick="window.confirmDeletion('habits', '${habit.id}', '${habit.description}')" class="text-gray-500 hover:text-red-500 transition-colors ml-2" title="Delete Habit">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                    </div>
-                `;
-                listEl.appendChild(habitElement);
-            });
-        }
-
-        /**
-         * Renders the list of rewards.
-         */
-        function renderRewards(rewards, keeperScore, nightingaleScore) {
-            const listEl = getEl('rewards-list');
-            listEl.innerHTML = '';
-            getEl('rewards-loading').classList.add('hidden'); // Hide loading indicator
-
-            if (rewards.length === 0) {
-                listEl.innerHTML = '<p class="text-center py-4 text-gray-500 italic">No rewards defined yet.</p>';
-                return;
-            }
-
-            rewards.sort((a, b) => a.cost - b.cost); // Sort by cost
-
-            rewards.forEach(reward => {
-                // Determine which user can afford it
-                const canKeeperAfford = keeperScore >= reward.cost;
-                const canNightingaleAfford = nightingaleScore >= reward.cost;
-
-                const rewardElement = document.createElement('div');
-                rewardElement.className = `card p-4 rounded-xl border-l-4 ${canKeeperAfford || canNightingaleAfford ? 'border-green-500' : 'border-red-500'}`;
-                rewardElement.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-lg font-bold text-white truncate">${reward.title}</p>
-                            <p class="text-sm text-green-400 font-mono mt-1">${reward.cost} Points</p>
-                            <p class="text-xs text-gray-400 italic mt-2 break-words">${reward.description}</p>
-                        </div>
-                        <div class="flex flex-col space-y-2 ml-4">
-                            <button onclick="window.confirmRedeem('keeper', '${reward.id}', '${reward.cost}')" ${!canKeeperAfford ? 'disabled' : ''} class="btn-primary p-2 text-xs rounded-lg disabled:opacity-50 whitespace-nowrap">
-                                ${gameState.keeperName || 'Keeper'} Redeem
-                            </button>
-                            <button onclick="window.confirmRedeem('nightingale', '${reward.id}', '${reward.cost}')" ${!canNightingaleAfford ? 'disabled' : ''} class="btn-primary p-2 text-xs rounded-lg disabled:opacity-50 whitespace-nowrap">
-                                ${gameState.nightingaleName || 'Nightingale'} Redeem
-                            </button>
-                            <button onclick="window.confirmDeletion('rewards', '${reward.id}', '${reward.title}')" class="text-gray-500 hover:text-red-500 transition-colors" title="Delete Reward">
-                                <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                listEl.appendChild(rewardElement);
-            });
-        }
-
-        /**
-         * Renders the list of punishments.
-         */
-        function renderPunishments(punishments) {
-            const listEl = getEl('punishments-list');
-            listEl.innerHTML = '';
-            getEl('punishments-loading').classList.add('hidden'); // Hide loading indicator
-
-            if (punishments.length === 0) {
-                listEl.innerHTML = '<p class="text-center py-4 text-gray-500 italic">No punishments defined yet.</p>';
-                return;
-            }
-
-            punishments.forEach(punishment => {
-                const punishmentElement = document.createElement('div');
-                punishmentElement.className = `card p-4 rounded-xl border-l-4 border-yellow-500`;
-                punishmentElement.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-lg font-bold text-white truncate">${punishment.title}</p>
-                            <p class="text-xs text-gray-400 italic mt-2 break-words">${punishment.description}</p>
-                        </div>
-                        <div class="ml-4">
-                            <button onclick="window.confirmDeletion('punishments', '${punishment.id}', '${punishment.title}')" class="text-gray-500 hover:text-red-500 transition-colors" title="Delete Punishment">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                listEl.appendChild(punishmentElement);
-            });
-        }
-
-
-        // =========================================================================
-        // 5. DATA ACTIONS (CRUD & Logic)
-        // =========================================================================
-
-        /**
-         * Adds a new habit to the ledger.
-         */
-        window.addHabit = async function() {
-            const desc = getEl('new-habit-desc').value.trim();
-            const points = parseInt(getEl('new-habit-points').value, 10);
-            const times = parseInt(getEl('new-habit-times').value, 10);
-            const assignee = getEl('new-habit-assignee').value;
-
-            if (!desc || isNaN(points) || points <= 0 || isNaN(times) || times <= 0) {
-                showModal("Validation Error", "Please provide a description, positive points, and positive times/day.");
-                return;
-            }
-
-            const newHabit = {
-                id: crypto.randomUUID(),
-                description: desc,
-                points: points,
-                timesPerDay: times,
-                currentCount: 0,
-                assignee: assignee,
-            };
-
-            try {
-                const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-                await updateDoc(docRef, {
-                    habits: [...gameState.habits, newHabit]
-                });
-                getEl('new-habit-desc').value = '';
-                getEl('new-habit-points').value = '10';
-                getEl('new-habit-times').value = '1';
-                toggleHabitForm();
-                showModal("Success", "New habit added!");
-            } catch (e) {
-                handleError(e, "Failed to add habit");
-            }
-        };
-
-        /**
-         * Increments/decrements a habit's count and updates the corresponding score.
-         * @param {string} habitId
-         * @param {number} delta - 1 for increment, -1 for decrement
-         */
-        window.incrementHabit = async function(habitId, delta) {
-            const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-            let updatedHabits = [...gameState.habits];
-            const habitIndex = updatedHabits.findIndex(h => h.id === habitId);
-
-            if (habitIndex === -1) {
-                handleError(new Error("Habit not found"), "Could not find the habit to update.");
-                return;
-            }
-
-            const habit = updatedHabits[habitIndex];
-            const newCount = (habit.currentCount || 0) + delta;
-
-            // Enforce bounds
-            if (newCount < 0) return;
-            if (newCount > habit.timesPerDay && delta > 0) return;
-
-            // Calculate score change
-            let scoreChange = 0;
-            let scoreField = habit.assignee === 'keeper' ? 'keeperScore' : 'nightingaleScore';
-
-            if (delta === 1) { 
-                scoreChange = habit.points;
-            } else if (delta === -1) { 
-                scoreChange = -habit.points;
-            }
-
-            // Update habit and score
-            updatedHabits[habitIndex].currentCount = newCount;
-            const newScore = (gameState[scoreField] || 0) + scoreChange;
-
-            try {
-                await updateDoc(docRef, {
-                    habits: updatedHabits,
-                    [scoreField]: Math.max(0, newScore) // Score should not drop below 0
-                });
-            } catch (e) {
-                handleError(e, "Failed to update habit/score");
-            }
-        };
-
-
-        /**
-         * Adds a new reward to the ledger.
-         */
-        window.addReward = async function() {
-            const title = getEl('new-reward-title').value.trim();
-            const cost = parseInt(getEl('new-reward-cost').value, 10);
-            const desc = getEl('new-reward-desc').value.trim();
-
-            if (!title || isNaN(cost) || cost <= 0 || !desc) {
-                showModal("Validation Error", "Please provide a title, a positive cost, and a description.");
-                return;
-            }
-
-            const newReward = {
-                id: crypto.randomUUID(),
-                title: title,
-                cost: cost,
-                description: desc,
-            };
-
-            try {
-                const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-                await updateDoc(docRef, {
-                    rewards: [...gameState.rewards, newReward]
-                });
-                getEl('new-reward-title').value = '';
-                getEl('new-reward-cost').value = '50';
-                getEl('new-reward-desc').value = '';
-                toggleRewardForm();
-                showModal("Success", "New reward defined!");
-            } catch (e) {
-                handleError(e, "Failed to add reward");
-            }
-        };
-
-        /**
-         * Asks for confirmation before redeeming a reward.
-         */
-        window.confirmRedeem = function(userRole, rewardId, cost) {
-            const reward = gameState.rewards.find(r => r.id === rewardId);
-            const userName = userRole === 'keeper' ? gameState.keeperName : gameState.nightingaleName;
-
-            showModal(
-                "Confirm Redemption",
-                `**${userName}**, are you sure you want to redeem **${reward.title}** for **${cost} points**? This action will subtract points immediately.`,
-                [
-                    { text: 'Cancel', style: 'btn-secondary', action: () => hideModal() },
-                    { text: 'Redeem', style: 'btn-primary', action: () => redeemReward(userRole, cost) }
-                ]
-            );
-        };
-
-        /**
-         * Redeems a reward, subtracting points from the user's score.
-         */
-        async function redeemReward(userRole, cost) {
-            const scoreField = userRole === 'keeper' ? 'keeperScore' : 'nightingaleScore';
-            const currentScore = gameState[scoreField];
-            const costInt = parseInt(cost, 10);
-            const newScore = currentScore - costInt;
-
-            if (newScore < 0) {
-                showModal("Error", "Insufficient points to redeem this reward.");
-                return;
-            }
-
-            try {
-                const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-                await updateDoc(docRef, {
-                    [scoreField]: newScore
-                });
-                showModal("Redeemed!", `${userRole === 'keeper' ? gameState.keeperName : gameState.nightingaleName} successfully redeemed the reward. ${costInt} points deducted.`);
-            } catch (e) {
-                handleError(e, "Failed to redeem reward");
-            }
-        }
-
-
-        /**
-         * Adds a new punishment to the ledger.
-         */
-        window.addPunishment = async function() {
-            const title = getEl('new-punishment-title').value.trim();
-            const desc = getEl('new-punishment-desc').value.trim();
-
-            if (!title || !desc) {
-                showModal("Validation Error", "Please provide both a title and a description for the punishment.");
-                return;
-            }
-
-            const newPunishment = {
-                id: crypto.randomUUID(),
-                title: title,
-                description: desc,
-            };
-
-            try {
-                const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-                await updateDoc(docRef, {
-                    punishments: [...gameState.punishments, newPunishment]
-                });
-                getEl('new-punishment-title').value = '';
-                getEl('new-punishment-desc').value = '';
-                togglePunishmentForm();
-                showModal("Success", "New punishment defined!");
-            } catch (e) {
-                handleError(e, "Failed to add punishment");
-            }
-        };
-
-        /**
-         * Prompts for confirmation before deleting any item (Habit, Reward, or Punishment).
-         */
-        window.confirmDeletion = function(collectionName, itemId, itemName) {
-            showModal(
-                "Confirm Deletion",
-                `Are you sure you want to delete **${itemName}**? You will have a chance to undo this.`,
-                [
-                    { text: 'Cancel', style: 'btn-secondary', action: () => hideModal() },
-                    { text: 'Delete', style: 'btn-primary', action: () => deleteItem(collectionName, itemId) }
-                ]
-            );
-        };
-
-        /**
-         * Deletes an item and sets up the undo state.
-         */
-        async function deleteItem(collectionName, itemId) {
-            const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-            const currentItems = gameState[collectionName] || [];
+            <!-- Keeper Score Card -->
+            <div class="card p-4 rounded-xl flex-1 min-w-[200px] max-w-sm">
+                <h2 id="keeper-name" class="text-2xl font-semibold mb-1">Keeper</h2>
+                <div class="text-4xl font-extrabold text-green-400" id="keeper-score">0</div>
+                <p class="text-xs text-zinc-500">Points Earned</p>
+            </div>
             
-            // Find the item to save for undo
-            const itemToDelete = currentItems.find(item => item.id === itemId);
-            if (!itemToDelete) {
-                showModal("Error", "Item to delete not found.");
-                return;
-            }
+            <!-- Nightingale Score Card -->
+            <div class="card p-4 rounded-xl flex-1 min-w-[200px] max-w-sm">
+                <h2 id="nightingale-name" class="text-2xl font-semibold mb-1">Nightingale</h2>
+                <div class="text-4xl font-extrabold text-purple-400" id="nightingale-score">0</div>
+                <p class="text-xs text-zinc-500">Points Earned</p>
+            </div>
 
-            const updatedItems = currentItems.filter(item => item.id !== itemId);
+        </div>
+    </header>
 
-            try {
-                // Save state for undo
-                lastDeletedItem = itemToDelete;
-                lastDeletedItemCollection = collectionName;
+    <!-- Main Content Grid -->
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        
+        <!-- Column 1: Habits -->
+        <section class="lg:col-span-2">
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold mb-4 flex justify-between items-center">
+                    Habits & Duties <i class="fas fa-feather text-zinc-500"></i>
+                </h2>
                 
-                // Use a dynamic property name for the update
-                const updatePayload = {};
-                updatePayload[collectionName] = updatedItems;
+                <!-- Add Habit Button -->
+                <button id="add-habit-btn" onclick="toggleHabitForm()" class="w-full btn-primary py-2 rounded-lg font-bold mb-4 hover:scale-[1.01] transition transform duration-200">
+                    <i class="fas fa-plus mr-2"></i> Define New Habit
+                </button>
+                
+                <!-- New Habit Form (Hidden by default) -->
+                <div id="new-habit-form" class="hidden p-4 bg-zinc-800 rounded-lg mb-4">
+                    <h3 class="text-xl font-semibold text-zinc-300 mb-3">New Habit Definition</h3>
+                    <input type="text" id="new-habit-desc" placeholder="Habit Description (e.g., Floss teeth)" class="input-style w-full p-2 mb-3 rounded-lg">
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <input type="number" id="new-habit-points" placeholder="Points (e.g., 10)" value="10" min="1" class="input-style p-2 rounded-lg">
+                        <input type="number" id="new-habit-times" placeholder="Times/Day (e.g., 1)" value="1" min="1" class="input-style p-2 rounded-lg">
+                    </div>
+                    <select id="new-habit-assignee" class="input-style w-full p-2 mb-3 rounded-lg">
+                        <option value="keeper">Assigned to Keeper</option>
+                        <option value="nightingale">Assigned to Nightingale</option>
+                    </select>
+                    
+                    <div class="flex justify-between gap-2">
+                        <button onclick="saveNewHabit()" class="flex-1 bg-green-700 hover:bg-green-600 text-white font-bold py-2 rounded-lg transition">Save Habit</button>
+                        <button onclick="generateExample('habit')" class="flex-1 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 rounded-lg transition">Example</button>
+                        <button onclick="toggleHabitForm()" class="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold py-2 rounded-lg transition">Cancel</button>
+                    </div>
+                </div>
 
-                await updateDoc(docRef, updatePayload);
+                <!-- Habits List -->
+                <div class="list-container max-h-96 overflow-y-auto">
+                    <ul id="habits-list">
+                        <!-- Habits will be rendered here by JavaScript -->
+                    </ul>
+                </div>
+            </div>
+        </section>
 
-                // Show toast for undo
-                showToast(`"${itemToDelete.title || itemToDelete.description}" removed.`, true);
+        <!-- Column 2: Rewards and Punishments -->
+        <section class="lg:col-span-1 grid grid-cols-1 gap-8">
+            
+            <!-- Rewards Section -->
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold mb-4 flex justify-between items-center">
+                    Rewards <i class="fas fa-trophy text-zinc-500"></i>
+                </h2>
+                
+                <!-- Add Reward Button -->
+                <button id="add-reward-btn" onclick="toggleRewardForm()" class="w-full btn-primary py-2 rounded-lg font-bold mb-4 hover:scale-[1.01] transition transform duration-200">
+                    <i class="fas fa-gift mr-2"></i> Define New Reward
+                </button>
 
-            } catch (e) {
-                handleError(e, `Failed to remove item from ${collectionName}`);
-                // Clear undo state on failure
-                lastDeletedItem = null;
-                lastDeletedItemCollection = null;
-            }
-        }
+                <!-- New Reward Form (Hidden by default) -->
+                <div id="new-reward-form" class="hidden p-4 bg-zinc-800 rounded-lg mb-4">
+                    <h3 class="text-xl font-semibold text-zinc-300 mb-3">New Reward Definition</h3>
+                    <input type="text" id="new-reward-title" placeholder="Reward Title (e.g., Takeout Dinner)" class="input-style w-full p-2 mb-3 rounded-lg">
+                    <input type="number" id="new-reward-cost" placeholder="Cost (e.g., 100)" value="50" min="1" class="input-style w-full p-2 mb-3 rounded-lg">
+                    <textarea id="new-reward-desc" placeholder="Reward Description" rows="2" class="input-style w-full p-2 mb-3 rounded-lg"></textarea>
+                    
+                    <div class="flex justify-between gap-2">
+                        <button onclick="saveNewReward()" class="flex-1 bg-green-700 hover:bg-green-600 text-white font-bold py-2 rounded-lg transition">Save Reward</button>
+                        <button onclick="generateExample('reward')" class="flex-1 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 rounded-lg transition">Example</button>
+                        <button onclick="toggleRewardForm()" class="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold py-2 rounded-lg transition">Cancel</button>
+                    </div>
+                </div>
 
+                <!-- Rewards List -->
+                <div class="list-container max-h-72 overflow-y-auto">
+                    <ul id="rewards-list">
+                        <!-- Rewards will be rendered here by JavaScript -->
+                    </ul>
+                </div>
+            </div>
 
-        // =========================================================================
-        // 6. EXAMPLE GENERATION (AI Logic)
-        // =========================================================================
+            <!-- Punishments Section -->
+            <div class="card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold mb-4 flex justify-between items-center">
+                    Punishments <i class="fas fa-gavel text-zinc-500"></i>
+                </h2>
+                
+                <!-- Add Punishment Button -->
+                <button id="add-punishment-btn" onclick="togglePunishmentForm()" class="w-full btn-primary py-2 rounded-lg font-bold mb-4 hover:scale-[1.01] transition transform duration-200">
+                    <i class="fas fa-plus mr-2"></i> Define New Punishment
+                </button>
+                
+                <!-- New Punishment Form (Hidden by default) -->
+                <div id="new-punishment-form" class="hidden p-4 bg-zinc-800 rounded-lg mb-4">
+                    <h3 class="text-xl font-semibold text-zinc-300 mb-3">New Punishment Definition</h3>
+                    <input type="text" id="new-punishment-title" placeholder="Punishment Title (e.g., Dish Duty)" class="input-style w-full p-2 mb-3 rounded-lg">
+                    <textarea id="new-punishment-desc" placeholder="Punishment Description" rows="2" class="input-style w-full p-2 mb-3 rounded-lg"></textarea>
+                    
+                    <div class="flex justify-between gap-2">
+                        <button onclick="saveNewPunishment()" class="flex-1 bg-green-700 hover:bg-green-600 text-white font-bold py-2 rounded-lg transition">Save Punishment</button>
+                        <button onclick="generateExample('punishment')" class="flex-1 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-2 rounded-lg transition">Example</button>
+                        <button onclick="togglePunishmentForm()" class="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold py-2 rounded-lg transition">Cancel</button>
+                    </div>
+                </div>
 
-        const EXAMPLE_DATA = {
-            habit: {
-                description: 'Meditate for 10 minutes (focus on breathing).',
-                points: 15,
-                times: 1,
-                assignee: 'keeper',
-            },
-            reward: {
-                title: 'No Chores Day',
-                cost: 100,
-                description: 'The redeemer is exempt from all household chores for one calendar day.',
-            },
-            punishment: {
-                title: 'The Dish Duty',
-                description: 'Must clean all dishes (including pots and pans) for three days straight.',
-            }
-        };
+                <!-- Punishments List -->
+                <div class="list-container max-h-72 overflow-y-auto">
+                    <ul id="punishments-list">
+                        <!-- Punishments will be rendered here by JavaScript -->
+                    </ul>
+                </div>
+            </div>
 
-        window.generateExample = function(type) {
-            const data = EXAMPLE_DATA[type];
-            if (!data) return;
+        </section>
+        
+        <!-- Column 3: History Log (on small screens, this is the last item) -->
+        <section class="lg:col-span-3">
+             <div class="card p-6 rounded-xl">
+                <h2 class="text-3xl font-bold mb-4 flex justify-start items-center">
+                    Ledger History (Last 10) <i class="fas fa-book-open ml-3 text-zinc-500"></i>
+                </h2>
+                <div class="list-container max-h-60 overflow-y-auto bg-zinc-900 rounded-lg">
+                    <ul id="history-log">
+                        <!-- History entries will be rendered here -->
+                    </ul>
+                </div>
+             </div>
+        </section>
 
-            if (type === 'habit') {
-                getEl('new-habit-desc').value = data.description;
-                getEl('new-habit-points').value = data.points;
-                getEl('new-habit-times').value = data.times;
-                getEl('new-habit-assignee').value = data.assignee;
-            } else if (type === 'reward') {
-                getEl('new-reward-title').value = data.title;
-                getEl('new-reward-cost').value = data.cost;
-                getEl('new-reward-desc').value = data.description;
-            } else if (type === 'punishment') {
-                getEl('new-punishment-title').value = data.title;
-                getEl('new-punishment-desc').value = data.description;
-            }
-        };
+    </main>
+    
+    <!-- Custom Modal for Alerts (Hidden by default) -->
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex justify-center items-center">
+        <div class="card p-6 rounded-xl max-w-sm w-full mx-4">
+            <h3 id="modal-title" class="text-2xl font-bold mb-3 text-b05c6c"></h3>
+            <p id="modal-message" class="text-zinc-300 mb-4"></p>
+            <button onclick="hideModal()" class="w-full btn-primary py-2 rounded-lg font-bold">Close</button>
+        </div>
+    </div>
 
+    <!-- 
+        1. Load examples.js first (it defines a global variable).
+        2. Load script.js as a module (it imports Firebase).
+    -->
+    <script src="examples.js"></script>
+    <script type="module" src="script.js"></script>
 
-        // =========================================================================
-        // 7. INITIALIZATION
-        // =========================================================================
-
-        window.onload = initializeFirebase;
-    </script>
 </body>
 </html>
