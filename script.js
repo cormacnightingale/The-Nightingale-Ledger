@@ -1,10 +1,23 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Import configuration variables from the separate file
-import { firebaseConfig, appId } from './firebase_config.js';
+
+/**
+ * CRITICAL: Configuration Variables
+ * 1. Replace these placeholder values with your actual Firebase project credentials.
+ * 2. appId is used for Firestore pathing and must be consistent.
+ */
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY_HERE", 
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+const appId = "nightingale-ledger-app"; // Used for Firestore Path: /artifacts/nightingale-ledger-app/users/{userId}/...
 
 
 /**
@@ -44,7 +57,7 @@ const EXAMPLE_DATABASE = {
     punishments: [
         // Domestic Tasks
         { title: "The Floor Detail", description: "Must meticulously sweep and mop every hard floor surface in the house." },
-        { title: "Refrigerator Purge", description: "Required to empty, clean, and reorganize the entire refrigerator/freezer." },
+        { title: "Refrigerator Purge", description: "Required to empty, clean, and reorganize the entire refrigerator/frezeer." },
         { title: "Handwritten Apology", description: "Must write a 250-word, hand-written apology/explanation for the failure of compliance." },
         
         // Self-Discipline
@@ -101,15 +114,13 @@ function handleError(error, userMessage) {
 
 /** Generates a new unique ID for database items. */
 function generateId() {
-    // Check if crypto is available (it should be in modern browsers)
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
     }
-    // Fallback for older environments or strict security settings
     return 'id-' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 }
 
-// --- UI Logic (Must be attached to window for HTML access) ---
+// --- UI Logic (Attached to window for HTML access) ---
 
 /** Changes the active tab displayed to the user. */
 window.changeTab = function(tabName) {
@@ -298,10 +309,10 @@ async function initializeFirebase() {
         setLogLevel('debug'); 
 
         if (!firebaseConfig || !firebaseConfig.projectId || !appId) {
-            throw new Error("Firebase configuration is incomplete. Please check firebase_config.js.");
+            throw new Error("Firebase configuration is incomplete. Please ensure firebaseConfig is updated.");
         }
 
-        // Initialize App and Services using the imported config
+        // Initialize App and Services
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
@@ -334,7 +345,7 @@ async function initializeFirebase() {
 
     } catch (e) {
         handleError(e, "Cannot initialize Firebase");
-        document.getElementById('loading-habits').textContent = "Initialization failed. Check console and firebase_config.js.";
+        document.getElementById('loading-habits').textContent = "Initialization failed. Check console and ensure Firebase config is correct.";
     }
 }
 
@@ -353,7 +364,7 @@ async function initializeDocument(docRef) {
 }
 
 
-// --- CRUD Operations (Must be attached to window for HTML access) ---
+// --- CRUD Operations (Attached to window for HTML access) ---
 
 window.addHabit = async function() {
     const desc = document.getElementById('new-habit-desc').value.trim();
