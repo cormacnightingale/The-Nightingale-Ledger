@@ -1,70 +1,61 @@
 /**
- * EXAMPLE_DATABASE provides default content for habits, rewards, and punishments.
- * NOTE: The 'type' field in habits is retained from a previous schema but is mapped 
- * to 'p1' (keeper) and 'p2' (nightingale) in script.js for assignment.
+ * EXAMPLE_DATABASE
+ * This object holds a large list of pre-defined suggestions for habits, rewards,
+ * and punishments to be used by the "Generate Example" buttons in the Nightingale Ledger.
+ * This is loaded globally before script.js.
  */
 const EXAMPLE_DATABASE = {
+    // --- HABITS (Description, Points, Type: 'keeper' or 'nightingale') ---
     habits: [
-        { 
-            type: 'keeper', // Mapped to P1
-            description: "Complete all outstanding paperwork.", 
-            points: 25 
-        },
-        { 
-            type: 'nightingale', // Mapped to P2
-            description: "Exercise for at least 30 minutes (cardio).", 
-            points: 15 
-        },
-        { 
-            type: 'keeper', // Mapped to P1
-            description: "Perform the full morning routine (including skincare).", 
-            points: 10 
-        },
-        { 
-            type: 'nightingale', // Mapped to P2
-            description: "Practice the instrument for one hour.", 
-            points: 20 
-        },
-        { 
-            type: 'keeper', // Mapped to P1
-            description: "Cook dinner and clean the entire kitchen afterwards.", 
-            points: 30 
-        },
+        // Daily Focus & Productivity (High Points)
+        { description: "Complete the designated 'Deep Work' task for the day (min 90 minutes).", points: 30, type: 'keeper' },
+        { description: "Review and organize the email inbox, reaching Inbox Zero.", points: 25, type: 'nightingale' },
+        { description: "Adhere strictly to the meal plan (no unauthorized snacks/takeout).", points: 35, type: 'keeper' },
+        { description: "Dedicate 60 minutes to learning a new professional skill (documented).", points: 40, type: 'nightingale' },
+        
+        // Health & Wellness (Medium Points)
+        { description: "Engage in a moderate-intensity 45-minute exercise session.", points: 15, type: 'keeper' },
+        { description: "Prepare lunch for the next day before 9 PM.", points: 10, type: 'nightingale' },
+        { description: "Read a physical book for 20 minutes before bedtime.", points: 10, type: 'keeper' },
+        { description: "Take all prescribed supplements/medication on time.", points: 5, type: 'nightingale' },
+        { description: "Ensure adequate 7+ hours of sleep (tracked by smart device).", points: 20, type: 'keeper' },
+        
+        // Domestic & Collaborative (Low Points)
+        { description: "Take out all household recycling and trash before 8 PM.", points: 5, type: 'nightingale' },
+        { description: "Perform a 15-minute 'power clean' of the main living area.", points: 10, type: 'keeper' },
+        { description: "Send a sincere, personalized compliment or appreciation note to a friend/family member.", points: 15, type: 'nightingale' },
     ],
+
+    // --- REWARDS (Title, Cost, Description) ---
     rewards: [
-        { 
-            title: "Movie Night Choice", 
-            cost: 40, 
-            description: "Absolute control over the movie choice, even the one the other partner hates." 
-        },
-        { 
-            title: "Morning Sleep-In", 
-            cost: 60, 
-            description: "The other partner handles all morning chores (coffee, letting out pets, breakfast prep) for one day." 
-        },
-        { 
-            title: "Takeout Night", 
-            cost: 100, 
-            description: "Order expensive takeout, completely paid for by the shared funds." 
-        },
-        { 
-            title: "Back Massage (30 min)", 
-            cost: 50, 
-            description: "A full 30-minute, no-complaints, focused back and shoulder massage." 
-        },
+        // Personal Indulgences
+        { title: "Long Bath/Shower", cost: 50, description: "A full hour of uninterrupted bathing/self-care time." },
+        { title: "Digital Escape", cost: 80, description: "An hour of guilt-free time playing video games or watching streaming content." },
+        { title: "Dessert Choice", cost: 30, description: "Partner must procure the claimant's favorite small dessert." },
+        
+        // Collaborative Rewards
+        { title: "Takeout Night", cost: 150, description: "Skip cooking entirely; order delivery from a mutually approved restaurant." },
+        { title: "Full Back Rub", cost: 100, description: "Receive a 20-minute, high-quality back and shoulder massage from the partner." },
+        { title: "Chores Swap", cost: 60, description: "The partner must do the claimant's least favorite chore for the day." },
+        
+        // Financial/Tangible
+        { title: "New Coffee", cost: 75, description: "Partner buys a small, pre-approved item (book, video game, etc.) under $20." },
     ],
+
+    // --- PUNISHMENTS (Title, Description) ---
     punishments: [
-        { 
-            title: "The Silent Treatment", 
-            description: "Must remain silent for one full hour (except for safety/work emergencies)." 
-        },
-        { 
-            title: "Random Chore Draw", 
-            description: "Must blindly draw and immediately complete one chore from the 'Punishment Chore Jar'." 
-        },
-        { 
-            title: "Unwanted Song Loop", 
-            description: "Must listen to the other partner's most hated song on repeat for 15 minutes." 
-        },
-    ]
+        // Domestic Tasks
+        { title: "The Floor Detail", description: "Must meticulously sweep and mop every hard floor surface in the house." },
+        { title: "Refrigerator Purge", description: "Required to empty, clean, and reorganize the entire refrigerator/freezer." },
+        { title: "Handwritten Apology", description: "Must write a 250-word, hand-written apology/explanation for the failure of compliance." },
+        
+        // Self-Discipline
+        { title: "Digital Blackout", description: "Must relinquish all non-essential personal electronics (phone/tablet/gaming device) for 12 hours." },
+        { title: "Mandatory Silence", description: "Must maintain complete silence (no speaking except for absolute necessity) for 2 hours." },
+        { title: "No Sweeteners", description: "Restricted from consuming any added sugars or artificial sweeteners for a period of 48 hours." },
+        
+        // Collaborative
+        { title: "Partner's Errand Run", description: "Must immediately run a spontaneous errand requested by the partner, no matter the distance or time." },
+        { title: "The Early Morning Detail", description: "Must perform all the morning chores (coffee, dishes, tidying) alone, starting 30 minutes earlier than usual." },
+    ],
 };
