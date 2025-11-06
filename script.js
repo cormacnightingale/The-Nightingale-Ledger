@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 
@@ -28,7 +28,7 @@ let gameState = {
 };
 
 
-// --- UTILITY FUNCTIONS ATTACHED TO WINDOW (Fixes window.showTab is not a function) ---
+// --- UTILITY FUNCTIONS ATTACHED TO WINDOW (FIXES TypeError) ---
 
 /**
  * Custom Modal for alerts (Replaces alert() and confirm())
@@ -74,7 +74,7 @@ window.showTab = function(tabName) {
 window.generateExample = function(type) {
     // Access the global EXAMPLE_DATABASE defined in examples.js
     if (typeof EXAMPLE_DATABASE === 'undefined' || !EXAMPLE_DATABASE[type + 's']) {
-        showModal("Error", "Example data is not loaded correctly. Check examples.js.");
+        window.showModal("Error", "Example data is not loaded correctly. Check examples.js.");
         return;
     }
     
@@ -136,7 +136,7 @@ window.togglePunishmentForm = function(forceShow = false) {
  * Initializes Firebase and performs authentication.
  */
 async function initFirebaseAndApp() {
-    // 1. Get Environment Variables (Fixes ReferenceError by moving access into a function)
+    // 1. Get Environment Variables (FIXES ReferenceError)
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     // Accessing and parsing the environment config here
     const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
@@ -146,7 +146,7 @@ async function initFirebaseAndApp() {
     
     // Check for config availability
     if (!firebaseConfig) {
-        showModal("Configuration Error", "Firebase configuration is missing. Cannot initialize application.");
+        window.showModal("Configuration Error", "Firebase configuration is missing. Cannot initialize application.");
         console.error("Firebase config is null or undefined.");
         return;
     }
@@ -171,24 +171,25 @@ async function initFirebaseAndApp() {
             if (user) {
                 userId = user.uid;
                 // Define the specific path for the current user's private data
+                // This path uses the user's ID for private storage: /artifacts/{appId}/users/{userId}/ledger_data
                 GAME_STATE_PATH = `/artifacts/${appId}/users/${userId}`;
                 document.getElementById('current-user-id').textContent = userId;
 
                 // 5. Start Real-time Listener for Game State
                 listenForGameState();
             } else {
-                // Use a random ID for unauthenticated fallback (won't persist data)
+                // Fallback to anonymous state
                 console.log("User signed out or failed to sign in.");
                 document.getElementById('current-user-id').textContent = 'Unauthenticated';
                 userId = crypto.randomUUID(); 
                 GAME_STATE_PATH = `/artifacts/${appId}/users/${userId}`;
-                showModal("Sign-In Required", "Authentication failed. Data persistence may not work.");
+                window.showModal("Sign-In Required", "Authentication failed. Data persistence may not work.");
             }
         });
 
     } catch (error) {
         console.error("Error during Firebase initialization:", error);
-        showModal("Initialization Failed", `Could not connect to the database. Error: ${error.message}`);
+        window.showModal("Initialization Failed", `Could not connect to the database. Error: ${error.message}`);
     }
 }
 
@@ -220,7 +221,7 @@ function listenForGameState() {
 
     }, (error) => {
         console.error("Error listening to game state:", error);
-        showModal("Database Error", "Failed to load live ledger data. Check console for details.");
+        window.showModal("Database Error", "Failed to load live ledger data. Check console for details.");
     });
 }
 
@@ -240,7 +241,7 @@ async function saveGameState() {
         // console.log("Game state saved successfully.");
     } catch (error) {
         console.error("Error saving game state:", error);
-        showModal("Save Error", `Failed to save data. Error: ${error.message}`);
+        window.showModal("Save Error", `Failed to save data. Error: ${error.message}`);
     }
 }
 
@@ -249,12 +250,12 @@ async function saveGameState() {
 
 function renderUI() {
     // 1. Render Scoreboard
-    document.getElementById('keeper-name').textContent = gameState.players.keeper;
-    document.getElementById('nightingale-name').textContent = gameState.players.nightingale;
+    document.getElementById('keeper-name-display').textContent = gameState.players.keeper;
+    document.getElementById('nightingale-name-display').textContent = gameState.players.nightingale;
     document.getElementById('keeper-score').textContent = gameState.scores.keeper;
     document.getElementById('nightingale-score').textContent = gameState.scores.nightingale;
 
-    // 2. Render Player Name Inputs (Definitions Tab)
+    // 2. Render Player Name Inputs (Definitions Tab) - Ensure inputs reflect stored state
     document.getElementById('config-keeper-name').value = gameState.players.keeper;
     document.getElementById('config-nightingale-name').value = gameState.players.nightingale;
 
@@ -350,7 +351,7 @@ function renderLedgerEntries() {
             const habit = gameState.habits[entry.habitIndex];
             if (!habit) return; // Skip if habit definition is missing
             
-            const pointsDisplay = entry.isComplete ? `<span class="text-green-400">+${habit.points}</span>` : `<span class="text-red-400">-0</span>`;
+            const pointsDisplay = entry.isComplete ? `<span class="text-green-400">+${habit.points}</span>` : `<span class="text-red-400">0</span>`;
             const statusColor = entry.isComplete ? 'text-green-400' : 'text-yellow-400';
 
             habitBody.insertAdjacentHTML('beforeend', `
@@ -416,7 +417,8 @@ function renderLedgerEntries() {
  * Updates the name of a player and saves the state.
  */
 window.updatePlayerName = function(playerKey, newName) {
-    if (gameState.players[playerKey] !== newName) {
+    // Only save if the name actually changed
+    if (gameState.players[playerKey] !== newName.trim()) {
         gameState.players[playerKey] = newName.trim();
         saveGameState();
     }
@@ -432,7 +434,7 @@ window.addHabitDefinition = function() {
     const assignee = document.getElementById('new-habit-assignee').value;
     
     if (!desc || isNaN(points) || points <= 0 || isNaN(timesPerWeek) || timesPerWeek <= 0 || !['keeper', 'nightingale'].includes(assignee)) {
-        showModal("Invalid Input", "Please provide a description, valid points, and times per week.");
+        window.showModal("Invalid Input", "Please provide a description, valid points (>=1), and times per week (>=1).");
         return;
     }
 
@@ -461,7 +463,7 @@ window.addReward = function() {
     const description = document.getElementById('new-reward-desc').value.trim();
     
     if (!title || isNaN(cost) || cost <= 0 || !description) {
-        showModal("Invalid Input", "Please provide a title, a valid cost, and a description for the reward.");
+        window.showModal("Invalid Input", "Please provide a title, a valid cost (>=1), and a description for the reward.");
         return;
     }
 
@@ -488,7 +490,7 @@ window.addPunishment = function() {
     const description = document.getElementById('new-punishment-desc').value.trim();
     
     if (!title || !description) {
-        showModal("Invalid Input", "Please provide a title and a description for the punishment.");
+        window.showModal("Invalid Input", "Please provide a title and a description for the punishment.");
         return;
     }
 
@@ -514,7 +516,7 @@ window.deleteDefinition = function(type, index) {
         return;
     }
 
-    // This is a dangerous operation. Should involve a confirmation but we skip confirm()
+    // This is a dangerous operation, we'll skip the UI confirmation to avoid using confirm()
     gameState[type].splice(index, 1);
     saveGameState();
 }
@@ -525,18 +527,16 @@ window.deleteDefinition = function(type, index) {
  */
 window.addHabitEntry = function() {
     if (gameState.habits.length === 0) {
-        showModal("No Habits Defined", "Please define a habit in the 'Definitions' tab first.");
+        window.showModal("No Habits Defined", "Please define a habit in the 'Definitions' tab first.");
         return;
     }
     
-    // Find the next habit that needs a check-in this week based on timesPerWeek logic
-    // For simplicity here, we'll just add a new 'completed' entry for the first habit.
-    
-    const habitIndex = 0; // Just use the first habit for the simplest demo
+    // Simple logic: use the first habit and assume completion
+    const habitIndex = 0; 
     const habit = gameState.habits[habitIndex];
 
     if (!habit) {
-        showModal("Error", "Habit definition is missing.");
+        window.showModal("Error", "Habit definition is missing.");
         return;
     }
 
@@ -546,14 +546,14 @@ window.addHabitEntry = function() {
         type: 'habit',
         timestamp: new Date().toISOString(),
         habitIndex: habitIndex,
-        isComplete: true, // Assume completion for this simplified entry
+        isComplete: true, 
     });
     
-    // Update the score (Assumes habit is assigned to one person, and they earn points)
+    // Update the score
     gameState.scores[habit.assignee] += habit.points;
 
     saveGameState();
-    showModal("Habit Logged", `Completed Habit: ${habit.description}. +${habit.points} for ${gameState.players[habit.assignee]}.`);
+    window.showModal("Habit Logged", `Completed Habit: ${habit.description}. +${habit.points} for ${gameState.players[habit.assignee]}.`);
 }
 
 
@@ -563,7 +563,7 @@ window.addHabitEntry = function() {
 window.addLogEntry = function(logType) {
     if (logType === 'reward') {
         if (gameState.rewards.length === 0) {
-            showModal("No Rewards Defined", "Please define a reward in the 'Rewards' tab first.");
+            window.showModal("No Rewards Defined", "Please define a reward in the 'Rewards' tab first.");
             return;
         }
         
@@ -574,7 +574,7 @@ window.addLogEntry = function(logType) {
         const redeemer = 'keeper'; 
         
         if (gameState.scores[redeemer] < reward.cost) {
-            showModal("Insufficient Points", `${gameState.players[redeemer]} only has ${gameState.scores[redeemer]} points. The reward costs ${reward.cost}.`);
+            window.showModal("Insufficient Points", `${gameState.players[redeemer]} only has ${gameState.scores[redeemer]} points. The reward costs ${reward.cost}.`);
             return;
         }
 
@@ -591,11 +591,11 @@ window.addLogEntry = function(logType) {
         });
         
         saveGameState();
-        showModal("Reward Redeemed!", `${gameState.players[redeemer]} redeemed "${reward.title}" for ${reward.cost} points.`);
+        window.showModal("Reward Redeemed!", `${gameState.players[redeemer]} redeemed "${reward.title}" for ${reward.cost} points.`);
 
     } else if (logType === 'punishment') {
         if (gameState.punishments.length === 0) {
-            showModal("No Punishments Defined", "Please define a punishment in the 'Rewards' tab first.");
+            window.showModal("No Punishments Defined", "Please define a punishment in the 'Rewards' tab first.");
             return;
         }
         
@@ -616,7 +616,7 @@ window.addLogEntry = function(logType) {
         });
         
         saveGameState();
-        showModal("Punishment Applied", `The punishment "${punishment.title}" was applied to ${gameState.players[appliedTo]}.`);
+        window.showModal("Punishment Applied", `The punishment "${punishment.title}" was applied to ${gameState.players[appliedTo]}.`);
     }
 }
 
@@ -628,7 +628,7 @@ window.togglePunishmentStatus = function(logEntryId) {
     
     if (entry) {
         entry.isComplete = !entry.isComplete;
-        showModal("Punishment Status Updated", `Punishment status for "${gameState.punishments[entry.punishmentIndex].title}" set to: ${entry.isComplete ? 'Completed' : 'Pending'}.`);
+        window.showModal("Punishment Status Updated", `Punishment status for "${gameState.punishments[entry.punishmentIndex].title}" set to: ${entry.isComplete ? 'Completed' : 'Pending'}.`);
         saveGameState();
     }
 }
