@@ -11,8 +11,8 @@
     <!-- Fonts for the intimate, goth style -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital@0;1;1&display=swap" rel="stylesheet">
     
-    <!-- Load Phosphor Icons (for game icons) -->
-    <script src="https://unpkg.com/@phosphor-icons/web@2.0.3/dist/p.js"></script>
+    <!-- Load Font Awesome Icons (Replaces Phosphor for reliability) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
     <style>
         /* Custom Styles for Goth/Vampiric Ledger Theme */
@@ -110,13 +110,13 @@
     <div class="max-w-4xl mx-auto">
         <div class="flex border-b border-gray-600 mb-4">
             <button id="tab-habits" class="flex-1 p-3 text-center transition-colors font-cinzel text-lg border-b-2 border-b-transparent hover:border-b-[#b05c6c] text-[#b05c6c]" onclick="changeTab('habits')">
-                <i class="ph ph-scroll text-xl mr-2"></i>Habits
+                <i class="fas fa-scroll text-xl mr-2"></i>Habits
             </button>
             <button id="tab-rewards" class="flex-1 p-3 text-center transition-colors font-cinzel text-lg border-b-2 border-b-transparent hover:border-b-[#b05c6c] text-gray-400" onclick="changeTab('rewards')">
-                <i class="ph ph-trophy text-xl mr-2"></i>Rewards
+                <i class="fas fa-trophy text-xl mr-2"></i>Rewards
             </button>
             <button id="tab-punishments" class="flex-1 p-3 text-center transition-colors font-cinzel text-lg border-b-2 border-b-transparent hover:border-b-[#b05c6c] text-gray-400" onclick="changeTab('punishments')">
-                <i class="ph ph-hand-palm text-xl mr-2"></i>Punishments
+                <i class="fas fa-hand-paper text-xl mr-2"></i>Punishments
             </button>
         </div>
 
@@ -195,7 +195,7 @@
     </footer>
 
 
-    <!-- External JavaScript Files -->
+    <!-- External JavaScript Modules -->
     <script type="module" src="./firebase_config.js"></script>
     <script type="module" src="./script.js"></script>
 
