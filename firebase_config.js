@@ -1,9 +1,10 @@
 /**
- * CRITICAL FIX: The config is now explicitly attached to the global 'window' object.
- * This ensures that the 'script.js' module can access it directly, as it
- * no longer relies on the __firebase_config global provided by the old environment.
+ * Firebase Configuration for The Nightingale Ledger.
+ * * CRITICAL FIX: The configuration is now declared using 'var' to ensure it 
+ * is globally scoped and accessible by the 'script.js' module, resolving 
+ * the 'undefined' error in standard web deployments.
  */
-window.firebaseConfig = {
+var firebaseConfig = {
   apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc",
   authDomain: "nightingaleledger-4627.firebaseapp.com",
   projectId: "nightingaleledger-4627",

@@ -2,13 +2,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, onSnapshot, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// --- Global Variables (Standard Web Deployment) ---
+// --- Global Variables (Standard Web Deployment - NO CANVAS DEPENDENCIES) ---
 
-// Static ID for the shared data path in Firestore. NO __app_id dependency.
+// Static ID for the shared data path in Firestore.
 const appId = 'nightingale-ledger-v1';
 
-// Attempt to access the configuration loaded via firebase_config.js
-// This MUST rely on the window object, which firebase_config.js now populates.
+// CRITICAL FIX: Access 'firebaseConfig' directly from the global 'window' object,
+// as it was loaded by the non-module script './firebase_config.js'.
 const externalFirebaseConfig = window.firebaseConfig; 
 
 // --- Firebase/App State ---
@@ -48,8 +48,11 @@ function showModal(title, message, isConfirm = false) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-message').textContent = message;
     
+    const okButton = document.getElementById('modal-ok-btn');
     const cancelButton = document.getElementById('modal-cancel-btn');
+    
     cancelButton.classList.toggle('hidden', !isConfirm);
+    okButton.textContent = isConfirm ? 'Confirm' : 'OK';
 
     document.getElementById('custom-modal').classList.remove('hidden');
 
@@ -121,6 +124,10 @@ function listenForUpdates() {
     const docRef = doc(db, GAME_STATE_PATH);
 
     onSnapshot(docRef, (doc) => {
+        // Hide loading screen on first successful snapshot regardless of content
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('app-content').classList.remove('hidden');
+        
         if (doc.exists()) {
             // Update local state and redraw UI
             const newGameState = doc.data();
@@ -142,10 +149,6 @@ function listenForUpdates() {
             console.log("No initial data found, creating default state.");
             saveGameState(); // Create the document if it doesn't exist
         }
-        
-        // Hide loading screen once we have received the first snapshot
-        document.getElementById('loading-screen').classList.add('hidden');
-        document.getElementById('app-content').classList.remove('hidden');
 
     }, (error) => {
         console.error("Firestore Listen Error:", error);
@@ -201,7 +204,7 @@ function renderUI() {
     rewardsList.innerHTML = '';
 
     if (gameState.rewards.length === 0) {
-        rewardsList.innerHTML = '<p class="text-center py-4 text-gray-500 italic">No rewards defined yet.</p>';
+        rewardsList.innerHTML = '<p class="text-center py-4 text-gray-500 italic md:col-span-2">No rewards defined yet.</p>';
     } else {
         gameState.rewards.forEach((reward, index) => {
             const canAffordKeeper = gameState.scores.keeper >= reward.cost;
@@ -237,7 +240,7 @@ function renderUI() {
     punishmentsList.innerHTML = '';
     
     if (gameState.punishments.length === 0) {
-        punishmentsList.innerHTML = '<p class="text-center py-4 text-gray-500 italic">No punishments defined yet.</p>';
+        punishmentsList.innerHTML = '<p class="text-center py-4 text-gray-500 italic md:col-span-3">No punishments defined yet.</p>';
     } else {
         gameState.punishments.forEach((punishment, index) => {
             const card = document.createElement('div');
@@ -490,93 +493,11 @@ window.alert = function(message) {
     showModal("Notice", message);
 }
 
-// --- Initialization ---
-
-/**
- * Initializes Firebase, authenticates, and starts the real-time listener.
- * NO REFERENCES to Canvas globals here.
- */
-async function initFirebase() {
-    // 1. Check for global firebaseConfig (now provided by firebase_config.js on window)
-    if (typeof externalFirebaseConfig === 'undefined' || !externalFirebaseConfig) {
-        document.getElementById('auth-error-message').textContent = "FATAL: Firebase configuration is missing (window.firebaseConfig not found). Ensure firebase_config.js loads before script.js.";
-        console.error("Firebase Config Error: window.firebaseConfig is not defined.");
-        // Hide loading and show error message if config is missing
-        document.getElementById('loading-screen').classList.remove('hidden');
-        document.getElementById('app-content').classList.add('hidden');
-        return;
-    }
-    
-    // 2. Initialize App
-    try {
-        app = initializeApp(externalFirebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-        setLogLevel('debug'); // Enable logging for debugging Firestore issues
-    } catch (e) {
-        console.error("Firebase Initialization Failed:", e);
-        document.getElementById('auth-error-message').textContent = `Initialization Error: ${e.message}`;
-        return;
-    }
-
-    // 3. Authentication: Use anonymous sign-in for standard web deployment
-    // NO signInWithCustomToken, NO __initial_auth_token dependency.
-    try {
-        await signInAnonymously(auth);
-    } catch (e) {
-        console.error("Authentication Failed:", e);
-        document.getElementById('auth-error-message').textContent = `Authentication Error: ${e.message}`;
-        return;
-    }
-    
-    // 4. Auth State Changed Listener
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            userId = user.uid;
-            
-            // Set the path for the shared ledger document using the static appId.
-            GAME_STATE_PATH = `artifacts/${appId}/public/data/ledger_state/${GAME_STATE_DOC_ID}`;
-            
-            console.log("Authenticated. User ID:", userId, "Data Path:", GAME_STATE_PATH);
-
-            // 5. Start listening for real-time updates
-            listenForUpdates();
-
-        } else {
-            userId = null;
-            document.getElementById('auth-error-message').textContent = "Authentication failed. Ledger features disabled.";
-            document.getElementById('loading-screen').classList.remove('hidden');
-            document.getElementById('app-content').classList.add('hidden');
-        }
-    });
-}
-
-
-// Run initialization on load
-window.onload = initFirebase;
-
-// Expose functions globally for HTML calls
-window.generateExample = generateExample;
-window.toggleHabitForm = toggleHabitForm;
-window.toggleRewardForm = toggleRewardForm;
-window.togglePunishmentForm = togglePunishmentForm;
-window.addHabit = addHabit;
-window.removeHabit = removeHabit;
-window.completeHabit = completeHabit;
-window.addReward = addReward;
-window.claimReward = claimReward;
-window.addPunishment = addPunishment;
-window.removePunishment = removePunishment;
-window.handleModalAction = handleModalAction;
-
-
 /**
  * Inserts a random example habit, reward, or punishment into the form fields.
- * This function assumes EXAMPLE_DATABASE is globally available (loaded via examples.js).
  */
-function generateExample(type) {
-    // Check if EXAMPLE_DATABASE is available (it's loaded via examples.js)
-    // We assume examples.js loads its variable globally.
+window.generateExample = function(type) {
+    // CRITICAL CHECK: Access global EXAMPLE_DATABASE provided by examples.js
     if (typeof EXAMPLE_DATABASE === 'undefined' || !EXAMPLE_DATABASE[type + 's']) {
         showModal("Error", "Example data is not loaded correctly. Ensure examples.js loads first.");
         return;
@@ -605,3 +526,67 @@ function generateExample(type) {
         if (document.getElementById('punishment-form').classList.contains('hidden')) { window.togglePunishmentForm(); }
     }
 }
+
+
+// --- Initialization ---
+
+/**
+ * Initializes Firebase, authenticates, and starts the real-time listener.
+ */
+async function initFirebase() {
+    // 1. Check for global firebaseConfig (which should be provided by firebase_config.js)
+    if (typeof externalFirebaseConfig === 'undefined' || externalFirebaseConfig === null) {
+        document.getElementById('auth-error-message').textContent = "FATAL: Firebase configuration is missing. Ensure firebase_config.js loaded correctly.";
+        console.error("Firebase Config Error: 'firebaseConfig' not found on window. Ensure firebase_config.js loads before script.js.");
+        // Keep loading screen up if config is missing
+        return;
+    }
+    
+    // 2. Initialize App
+    try {
+        app = initializeApp(externalFirebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        setLogLevel('debug'); // Enable logging for debugging Firestore issues
+    } catch (e) {
+        console.error("Firebase Initialization Failed:", e);
+        document.getElementById('auth-error-message').textContent = `Initialization Error: ${e.message}`;
+        // Show error and stop initialization
+        return;
+    }
+
+    // 3. Authentication: Use anonymous sign-in for standard web deployment
+    try {
+        await signInAnonymously(auth);
+    } catch (e) {
+        console.error("Authentication Failed:", e);
+        document.getElementById('auth-error-message').textContent = `Authentication Error: ${e.message}`;
+        // Show error and stop initialization
+        return;
+    }
+    
+    // 4. Auth State Changed Listener
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            userId = user.uid;
+            
+            // Set the path for the shared ledger document using the static appId.
+            GAME_STATE_PATH = `artifacts/${appId}/public/data/ledger_state/${GAME_STATE_DOC_ID}`;
+            
+            console.log("Authenticated. User ID:", userId, "Data Path:", GAME_STATE_PATH);
+
+            // 5. Start listening for real-time updates
+            listenForUpdates();
+
+        } else {
+            userId = null;
+            document.getElementById('auth-error-message').textContent = "Authentication failed. Ledger features disabled.";
+            document.getElementById('loading-screen').classList.remove('hidden');
+            document.getElementById('app-content').classList.add('hidden');
+        }
+    });
+}
+
+
+// Run initialization on load
+window.onload = initFirebase;
