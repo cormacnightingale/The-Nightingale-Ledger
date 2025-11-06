@@ -269,16 +269,6 @@
         // 🚨 CRITICAL DEBUG STEP: Turn on verbose logging for Firebase
         setLogLevel('Debug'); 
 
-        // 🚨 IMPORTANT: The manual config below will be overwritten by the Canvas environment.
-        const MANUAL_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyC6fo56hdBEkCgiHJAIqoNwZN7aNIID4xo",
-            authDomain: "nightingaleledger.firebaseapp.com",
-            projectId: "nightingaleledger",
-            storageBucket: "nightingaleledger.firebasestorage.app",
-            messagingSenderId: "1067784978486",
-            appId: "1:1067784978486:web:f0a41d82b130a6376dd897"
-        };
-        
         // --- GLOBAL VARIABLES & FIREBASE SETUP ---
         
         let db;
@@ -304,9 +294,15 @@
         // MANDATORY GLOBALS - Ensuring we use environment variables correctly
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const canvasFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        // Use Canvas config if available, otherwise use the manual config.
-        const firebaseConfig = canvasFirebaseConfig && Object.keys(canvasFirebaseConfig).length > 0 ? canvasFirebaseConfig : MANUAL_FIREBASE_CONFIG;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // Use Canvas config if it is present and valid
+        const firebaseConfig = canvasFirebaseConfig && Object.keys(canvasFirebaseConfig).length > 0 ? canvasFirebaseConfig : {
+            // Placeholder/Manual config (This should NOT be used in Canvas environment)
+            apiKey: "PLACEHOLDER", 
+            authDomain: "PLACEHOLDER",
+            projectId: "PLACEHOLDER"
+        };
         
         // Firestore Path Definitions (Public Data for Shared State)
         const COLLECTION_NAME = 'ledgers';
@@ -427,25 +423,27 @@
             try {
                 console.log("AUTH FLOW: Step 1 - Initializing Firebase App and Services...");
 
-                if (!firebaseConfig || 
-                    !firebaseConfig.projectId || 
-                    !firebaseConfig.apiKey || 
-                    !firebaseConfig.authDomain) 
-                {
-                     throw new Error("Configuration Missing: Firebase config is incomplete (missing apiKey, authDomain, or projectId).");
+                if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
+                     throw new Error("Configuration Missing: Firebase config is incomplete (missing apiKey or projectId). Check environment variables.");
                 }
 
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Attempt Sign-In
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    console.log("AUTH FLOW: Signed in with Custom Token.");
-                } else {
-                    await signInAnonymously(auth);
-                    console.log("AUTH FLOW: Signed in Anonymously.");
+                // --- Attempt Sign-In ---
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("AUTH FLOW: Step 2a - Signed in with Custom Token.");
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log("AUTH FLOW: Step 2b - Signed in Anonymously.");
+                    }
+                } catch(e) {
+                    // Catch sign-in errors specifically
+                    console.error("AUTH FLOW: Sign-In Failed:", e);
+                    throw new Error(`Authentication Error: ${e.code || e.message}`);
                 }
 
                 // CRITICAL: Wait for authentication state to be confirmed before starting the UI
@@ -456,8 +454,7 @@
                         showLedgerSelectionModal();
                     } else {
                         console.warn("Authentication state changed to null. User is not logged in.");
-                        // Even if unauthenticated, if this is a canvas setup, we show the modal to proceed.
-                        // However, for safety, we only proceed on a successful user object.
+                        // This case should be rare if sign-in was successful, but handled here.
                     }
                 });
 
