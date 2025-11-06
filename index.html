@@ -40,7 +40,7 @@
         .btn-primary:hover {
             background-color: #d47e8c;
             transform: translateY(-1px);
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 5px rgba (0, 0, 0, 0.3);
         }
         .btn-secondary {
             background-color: #3c3c45;
@@ -166,13 +166,13 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl md:text-3xl">Habits & Daily Tasks</h2>
                     <button onclick="toggleHabitForm()" class="btn-primary text-sm rounded-lg font-semibold shadow-lg">
-                        + Add Habit
+                        + Add Task
                     </button>
                 </div>
                 
                 <!-- Habit Add Form -->
                 <div id="habit-form" class="card p-4 rounded-xl mb-6 hidden">
-                    <h3 class="text-lg mb-3 text-white">Create a New Habit</h3>
+                    <h3 class="text-lg mb-3 text-white">Create a New Task</h3>
                     <input type="text" id="new-habit-desc" placeholder="Habit description (e.g., Daily workout)" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
                     <div class="flex flex-col sm:flex-row sm:space-x-3 mb-3 space-y-3 sm:space-y-0">
                         <input type="number" id="new-habit-points" placeholder="Points (e.g., 10)" class="w-full sm:w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="10">
@@ -251,15 +251,15 @@
 
         // 🚨 IMPORTANT: When running outside the Canvas environment (e.g., GitHub Pages), 
         // this object must contain your Firebase project configuration.
-        const firebaseConfig = {
-          apiKey: "AIzaSyC6fo56hdBEkCgiHJAIqoNwZN7aNIID4xo",
-          authDomain: "nightingaleledger.firebaseapp.com",
-          projectId: "nightingaleledger",
-          storageBucket: "nightingaleledger.firebasestorage.app",
-          messagingSenderId: "1067784978486",
-          appId: "1:1067784978486:web:f0a41d82b130a6376dd897"
+        // NOTE: The values below are placeholders and will be overwritten by the Canvas environment.
+        const MANUAL_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyC6fo56hdBEkCgiHJAIqoNwZN7aNIID4xo",
+            authDomain: "nightingaleledger.firebaseapp.com",
+            projectId: "nightingaleledger",
+            storageBucket: "nightingaleledger.firebasestorage.app",
+            messagingSenderId: "1067784978486",
+            appId: "1:1067784978486:web:f0a41d82b130a6376dd897"
         };
-
         
         // --- GLOBAL VARIABLES & FIREBASE SETUP ---
         
@@ -304,11 +304,8 @@
 
         function handleError(e, customMessage) {
             console.error(customMessage, e);
-            if (!canvasFirebaseConfig || (e && e.message)) {
-                showModal("Error", `${customMessage}: ${e.message || e}`);
-            } else {
-                console.warn("Minor error handled or running in Canvas without user alert.");
-            }
+            // Only show the modal for critical failures like initialization errors
+            showModal("Error", `${customMessage}: ${e.message || e}`);
         }
 
         function generateUniqueId() {
@@ -346,10 +343,11 @@
         window.hostNewLedger = async function() {
             let newCode = generateLedgerCode();
             const docRef = doc(db, BASE_PATH, newCode);
-            const docSnap = await getDoc(docRef);
+            // This is a quick non-atomic check; collisions are very low.
+            const docSnap = await getDoc(docRef); 
 
-            // Simple check to ensure code is unique
             if (docSnap.exists()) {
+                // If it exists, try a new one (only done once for simplicity)
                 newCode = generateLedgerCode(); 
             }
             
@@ -383,8 +381,13 @@
         
         async function initializeFirebase() {
             try {
-                if (!firebaseConfig || !firebaseConfig.projectId) {
-                     throw new Error("Configuration Missing: Firebase config is not provided.");
+                // 💥 FIX: Ensure all required fields for Auth are present before initializing
+                if (!firebaseConfig || 
+                    !firebaseConfig.projectId || 
+                    !firebaseConfig.apiKey || 
+                    !firebaseConfig.authDomain) 
+                {
+                     throw new Error("Configuration Missing: Firebase config is incomplete or not provided. Check apiKey, authDomain, and projectId.");
                 }
 
                 const app = initializeApp(firebaseConfig);
@@ -406,6 +409,7 @@
                 });
 
             } catch (e) {
+                // Critical failure, use the basic error handler
                 handleError(e, "Firebase Initialization Failed");
             }
         }
@@ -824,4 +828,3 @@
     </script>
 </body>
 </html>
-
