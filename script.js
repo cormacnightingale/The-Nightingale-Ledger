@@ -5,6 +5,9 @@ import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, s
 // --- Global Variables (Provided by Canvas Environment or User File) ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+// Local Storage Key for remembering the last connected ledger
+const LAST_LEDGER_KEY = `nightingale_ledger_code_${appId}`;
+
 // FIX: Check for the canvas string (__firebase_config) OR the global object (window.firebaseConfig)
 // The global object is created when firebase_config.js is loaded in index.html
 const configSource = typeof __firebase_config !== 'undefined' 
@@ -49,7 +52,9 @@ let gameState = {
     hostId: null,      // The ID of the user who created the ledger
 };
 
-let userRole = null; // Tracks 'keeper', 'nightingale', or null for the current client
+// Tracks 'keeper', 'nightingale', or null for the current client.
+// 'viewer' is reserved for a third party who has no assigned role.
+let userRole = null; 
 
 // --- Utility Functions ---
 
@@ -154,6 +159,52 @@ function enableAppUI() {
     }
     console.log("App UI enabled. Buttons are now clickable.");
 }
+
+/**
+ * Attempts to automatically join the last saved ledger code from local storage.
+ * This runs only on initial load.
+ * @param {string} code - The ledger code to attempt to join.
+ */
+async function attemptAutoJoin(code) {
+    // Temporarily update status message
+    const appStatus = document.getElementById('app-status');
+    if (appStatus) {
+        appStatus.textContent = `Attempting to automatically join last ledger: ${code}...`;
+        appStatus.classList.remove('bg-green-900/50', 'text-green-300');
+        appStatus.classList.add('bg-yellow-900/50', 'text-yellow-300');
+    }
+
+    const joined = await window.joinLedger(code, true); // Pass true to skip modal on success
+    
+    if (joined) {
+        if (appStatus) appStatus.textContent = 'Successfully reconnected.';
+    } else {
+        // If auto-join failed (e.g., ledger deleted), clear the stored code
+        localStorage.removeItem(LAST_LEDGER_KEY);
+        if (appStatus) appStatus.textContent = 'Ready to connect or host.';
+    }
+    
+    // Re-enable UI regardless of outcome
+    enableAppUI();
+}
+
+/**
+ * Disconnects the user from the current ledger, clears local storage, and resets the app state.
+ */
+window.disconnectLedger = function() {
+    if (!gameState.ledgerCode) return;
+
+    showModal("Disconnected", `You have disconnected from ledger ${gameState.ledgerCode}. To rejoin, use the code on the setup screen.`);
+    
+    // Clear local storage and local state
+    localStorage.removeItem(LAST_LEDGER_KEY);
+    gameState.ledgerCode = null;
+    userRole = null;
+    
+    // A simple page reload is the most reliable way to reset Firebase listeners and the entire app state
+    window.location.reload(); 
+}
+
 
 // --- Firebase Interaction ---
 
@@ -272,8 +323,8 @@ function listenToLedger() {
             // Document not found or has been deleted
             console.warn("Ledger document does not exist or has been deleted.");
             showModal("Ledger Lost", "The shared ledger has been disconnected or deleted by the host.");
-            gameState.ledgerCode = null;
-            renderUI();
+            // Force disconnection to clear state
+            window.disconnectLedger();
         }
     }, (error) => {
         console.error("Error listening to ledger:", error);
@@ -379,6 +430,7 @@ window.hostNewLedger = async function() {
         gameState.ledgerCode = newCode;
         gameState.hostId = userId;
         userRole = 'keeper'; // Set local role
+        localStorage.setItem(LAST_LEDGER_KEY, newCode); // Persist the code
         console.log(`Hosted new ledger successfully.`);
         showModal("Ledger Hosted!", `Your new shared ledger code is: ${newCode}. Share this with your partner!`);
         listenToLedger();
@@ -394,18 +446,21 @@ window.hostNewLedger = async function() {
 
 /**
  * Attempts to join an existing ledger using a code.
+ * @param {string} [codeOverride=null] - Optional code to join (used for auto-join).
+ * @param {boolean} [silent=false] - If true, suppresses the success modal.
+ * @returns {Promise<boolean>} True if joined successfully, false otherwise.
  */
-window.joinLedger = async function() {
+window.joinLedger = async function(codeOverride = null, silent = false) {
     if (!db || !isAuthReady) {
         showModal("Initialization Error", "The application is still initializing. Please wait until the app status shows 'Ready'.");
-        return; 
+        return false; 
     }
 
-    const code = document.getElementById('join-code').value.toUpperCase().trim();
+    const code = codeOverride || document.getElementById('join-code').value.toUpperCase().trim();
 
     if (code.length !== LEDGER_DOC_ID_LENGTH) {
-        showModal("Invalid Code", `The ledger code must be exactly ${LEDGER_DOC_ID_LENGTH} characters long.`);
-        return;
+        if (!silent) showModal("Invalid Code", `The ledger code must be exactly ${LEDGER_DOC_ID_LENGTH} characters long.`);
+        return false;
     }
 
     const ledgerDocRef = doc(db, getLedgerCollectionPath(), code);
@@ -416,52 +471,67 @@ window.joinLedger = async function() {
         if (docSnap.exists()) {
             const remoteData = docSnap.data();
             
-            // Check for available slot
+            // Check for existing assignment or available slot (Security Check)
             let assignedRole = null;
             let updates = {};
+            
+            const isCurrentUserKeeper = remoteData.users?.keeperId === userId;
+            const isCurrentUserNightingale = remoteData.users?.nightingaleId === userId;
+            const isKeeperTaken = !!remoteData.users?.keeperId;
+            const isNightingaleTaken = !!remoteData.users?.nightingaleId;
 
-            if (remoteData.users?.keeperId === userId || remoteData.users?.nightingaleId === userId) {
-                 // Already assigned a role
-                 assignedRole = remoteData.users.keeperId === userId ? 'keeper' : 'nightingale';
-            } else if (!remoteData.users?.keeperId) {
-                // Host slot empty - assign as Keeper (less likely unless host deleted the doc)
+            if (isCurrentUserKeeper) {
+                 assignedRole = 'keeper'; // User is already the Keeper
+            } else if (isCurrentUserNightingale) {
+                 assignedRole = 'nightingale'; // User is already the Nightingale
+            } else if (isKeeperTaken && isNightingaleTaken) {
+                // Both primary roles are taken - prevents a 3rd user from officially joining
+                showModal("Ledger Full", "This ledger already has both the Keeper and the Nightingale assigned. You can observe, but cannot take a role.");
+                return false;
+            } else if (!isKeeperTaken) {
                 assignedRole = 'keeper';
                 updates.keeperId = userId;
-            } else if (!remoteData.users?.nightingaleId) {
-                // Partner slot empty - assign as Nightingale
+            } else if (!isNightingaleTaken) {
                 assignedRole = 'nightingale';
                 updates.nightingaleId = userId;
             } else {
-                showModal("Ledger Full", "This ledger already has two users assigned (Keeper and Nightingale).");
-                return;
+                // This state should not be reachable if logic is sound
+                showModal("Assignment Error", "Could not determine an open role. Ledger may be in an inconsistent state.");
+                return false;
             }
 
             // Assign role in Firestore if needed
             if (Object.keys(updates).length > 0) {
                 const updateSuccess = await updateLedgerUsers(updates);
-                if (!updateSuccess) return; 
+                if (!updateSuccess) return false; 
             }
             
             // Success! Update local state and start listening
             gameState.ledgerCode = code;
             gameState.hostId = remoteData.hostId;
             userRole = assignedRole; // Set local role
-            
-            showModal("Joined Successfully", `Connected to ledger ${code}. You are the ${assignedRole.charAt(0).toUpperCase() + assignedRole.slice(1)}.`);
+            localStorage.setItem(LAST_LEDGER_KEY, code); // Persist the code
+
+            if (!silent) {
+                showModal("Joined Successfully", `Connected to ledger ${code}. You are the ${assignedRole.charAt(0).toUpperCase() + assignedRole.slice(1)}.`);
+            }
             listenToLedger();
             
-            // Prompt the joiner to set their profile if using default name
+            // Prompt the user to set their profile if using default name
             if ((userRole === 'keeper' && remoteData.customization?.keeperName === 'User 1') || 
                 (userRole === 'nightingale' && remoteData.customization?.nightingaleName === 'User 2')) {
                 window.showProfileModal(userRole);
             }
+            return true;
 
         } else {
-            showModal("Code Not Found", `No active ledger found for code: ${code}. Please verify the code.`);
+            if (!silent) showModal("Code Not Found", `No active ledger found for code: ${code}. Please verify the code.`);
+            return false;
         }
     } catch (error) {
         console.error("Error joining ledger:", error);
-        showModal("Joining Failed", `Could not connect to the ledger. Error: ${error.message}`);
+        if (!silent) showModal("Joining Failed", `Could not connect to the ledger. Error: ${error.message}`);
+        return false;
     }
 }
 
@@ -473,22 +543,26 @@ window.joinLedger = async function() {
  * @param {'keeper'|'nightingale'} role - The role the user is setting up.
  */
 window.showProfileModal = function(role) {
-    const roleEl = document.getElementById('profile-modal-role');
-    const roleName = role.charAt(0).toUpperCase() + role.slice(1);
-    
-    roleEl.textContent = roleName;
-    roleEl.classList.remove('text-yellow-300', 'text-green-400', 'text-blue-400');
-    roleEl.classList.add(role === 'keeper' ? 'text-green-400' : 'text-blue-400');
-    
-    // Set placeholder/default values
-    const currentName = gameState.customization[`${role}Name`];
-    const currentTitle = gameState.customization[`${role}Title`];
-    
-    document.getElementById('profile-name-input').value = currentName === `User ${role === 'keeper' ? '1' : '2'}` ? '' : currentName;
-    document.getElementById('profile-title-input').value = currentTitle === `The ${roleName}` ? '' : currentTitle;
+    // Only show if the profile modal is not already displayed AND we have a role
+    const modal = document.getElementById('user-profile-modal');
+    if (modal.classList.contains('hidden')) {
+        const roleEl = document.getElementById('profile-modal-role');
+        const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+        
+        roleEl.textContent = roleName;
+        roleEl.classList.remove('text-yellow-300', 'text-green-400', 'text-blue-400');
+        roleEl.classList.add(role === 'keeper' ? 'text-green-400' : 'text-blue-400');
+        
+        // Set placeholder/default values
+        const currentName = gameState.customization[`${role}Name`];
+        const currentTitle = gameState.customization[`${role}Title`];
+        
+        document.getElementById('profile-name-input').value = currentName === `User ${role === 'keeper' ? '1' : '2'}` ? '' : currentName;
+        document.getElementById('profile-title-input').value = currentTitle === `The ${roleName}` ? '' : currentTitle;
 
 
-    document.getElementById('user-profile-modal').classList.remove('hidden');
+        modal.classList.remove('hidden');
+    }
 }
 
 /**
@@ -645,7 +719,16 @@ window.initApp = async function() {
             // Authentication is complete, DB is ready
             isAuthReady = true;
             console.log("2. Authentication complete. User ID:", userId);
-            enableAppUI(); // Enable buttons now
+            
+            // NEW: Auto-load the last used ledger if a code is saved
+            const lastCode = localStorage.getItem(LAST_LEDGER_KEY);
+            if (lastCode) {
+                await attemptAutoJoin(lastCode);
+            } else {
+                // Only enable UI if no auto-join attempt was made (or if it failed, which is handled in attemptAutoJoin)
+                enableAppUI(); 
+            }
+            
             renderUI();
         });
 
