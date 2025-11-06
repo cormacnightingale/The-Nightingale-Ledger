@@ -1,11 +1,15 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, collection, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// --- Global Variables (Provided by Canvas Environment) ---
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+// --- Global Variables (Standard Web Deployment) ---
+
+// Static ID for the shared data path in Firestore. NO __app_id dependency.
+const appId = 'nightingale-ledger-v1';
+
+// Attempt to access the configuration loaded via firebase_config.js
+// This MUST rely on the window object, which firebase_config.js now populates.
+const externalFirebaseConfig = window.firebaseConfig; 
 
 // --- Firebase/App State ---
 let app;
@@ -343,7 +347,7 @@ window.completeHabit = async function(index) {
         message: `Completed habit: "${habit.description}" (+${points} pts)` 
     });
     
-    // The habit is considered done for now, so we remove it. A recurring habit would be immediately re-added.
+    // The habit is considered done for now, so we remove it. 
     gameState.habits.splice(index, 1);
     
     await saveGameState();
@@ -396,9 +400,6 @@ window.claimReward = async function(index, role) {
         role: role, 
         message: `Claimed reward: "${reward.title}" (-${reward.cost} pts)` 
     });
-    
-    // Optionally remove the reward after claim if it's a one-time thing
-    // gameState.rewards.splice(index, 1);
     
     await saveGameState();
 }
@@ -493,34 +494,35 @@ window.alert = function(message) {
 
 /**
  * Initializes Firebase, authenticates, and starts the real-time listener.
+ * NO REFERENCES to Canvas globals here.
  */
 async function initFirebase() {
-    // 1. Check for global firebaseConfig
-    if (!firebaseConfig) {
-        document.getElementById('auth-error-message').textContent = "Firebase configuration is missing (globals not found). Cannot connect to Ledger.";
-        console.error("Firebase Config Error: __firebase_config is not defined.");
+    // 1. Check for global firebaseConfig (now provided by firebase_config.js on window)
+    if (typeof externalFirebaseConfig === 'undefined' || !externalFirebaseConfig) {
+        document.getElementById('auth-error-message').textContent = "FATAL: Firebase configuration is missing (window.firebaseConfig not found). Ensure firebase_config.js loads before script.js.";
+        console.error("Firebase Config Error: window.firebaseConfig is not defined.");
+        // Hide loading and show error message if config is missing
+        document.getElementById('loading-screen').classList.remove('hidden');
+        document.getElementById('app-content').classList.add('hidden');
         return;
     }
     
     // 2. Initialize App
     try {
-        app = initializeApp(firebaseConfig);
+        app = initializeApp(externalFirebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
-        setLogLevel('Debug'); // Enable logging for debugging Firestore issues
+        setLogLevel('debug'); // Enable logging for debugging Firestore issues
     } catch (e) {
         console.error("Firebase Initialization Failed:", e);
         document.getElementById('auth-error-message').textContent = `Initialization Error: ${e.message}`;
         return;
     }
 
-    // 3. Authentication using the provided custom token or falling back to anonymous
+    // 3. Authentication: Use anonymous sign-in for standard web deployment
+    // NO signInWithCustomToken, NO __initial_auth_token dependency.
     try {
-        if (initialAuthToken) {
-            await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-            await signInAnonymously(auth);
-        }
+        await signInAnonymously(auth);
     } catch (e) {
         console.error("Authentication Failed:", e);
         document.getElementById('auth-error-message').textContent = `Authentication Error: ${e.message}`;
@@ -532,8 +534,7 @@ async function initFirebase() {
         if (user) {
             userId = user.uid;
             
-            // Set the path for the shared ledger document
-            // Path: /artifacts/{appId}/public/data/ledger_state/ledger_data
+            // Set the path for the shared ledger document using the static appId.
             GAME_STATE_PATH = `artifacts/${appId}/public/data/ledger_state/${GAME_STATE_DOC_ID}`;
             
             console.log("Authenticated. User ID:", userId, "Data Path:", GAME_STATE_PATH);
@@ -556,6 +557,18 @@ window.onload = initFirebase;
 
 // Expose functions globally for HTML calls
 window.generateExample = generateExample;
+window.toggleHabitForm = toggleHabitForm;
+window.toggleRewardForm = toggleRewardForm;
+window.togglePunishmentForm = togglePunishmentForm;
+window.addHabit = addHabit;
+window.removeHabit = removeHabit;
+window.completeHabit = completeHabit;
+window.addReward = addReward;
+window.claimReward = claimReward;
+window.addPunishment = addPunishment;
+window.removePunishment = removePunishment;
+window.handleModalAction = handleModalAction;
+
 
 /**
  * Inserts a random example habit, reward, or punishment into the form fields.
@@ -563,8 +576,9 @@ window.generateExample = generateExample;
  */
 function generateExample(type) {
     // Check if EXAMPLE_DATABASE is available (it's loaded via examples.js)
+    // We assume examples.js loads its variable globally.
     if (typeof EXAMPLE_DATABASE === 'undefined' || !EXAMPLE_DATABASE[type + 's']) {
-        showModal("Error", "Example data is not loaded correctly.");
+        showModal("Error", "Example data is not loaded correctly. Ensure examples.js loads first.");
         return;
     }
     

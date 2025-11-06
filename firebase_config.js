@@ -1,7 +1,7 @@
 /**
- * CORRECTED: The 'var' keyword is replaced with 'window.' to explicitly
- * attach the configuration object to the global window scope, making it
- * accessible to the 'script.js' module.
+ * CRITICAL FIX: The config is now explicitly attached to the global 'window' object.
+ * This ensures that the 'script.js' module can access it directly, as it
+ * no longer relies on the __firebase_config global provided by the old environment.
  */
 window.firebaseConfig = {
   apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc",
