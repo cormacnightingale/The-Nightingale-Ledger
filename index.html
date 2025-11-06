@@ -90,14 +90,14 @@
 </head>
 <body class="p-4 md:p-8">
 
-    <!-- Modal for Messages (replaces alert/confirm) -->
+    <!-- Modal for Messages/Confirmations -->
     <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center">
         <div class="bg-[#1a1a1d] card p-6 rounded-xl w-11/12 max-w-sm">
             <h3 id="modal-title" class="text-xl mb-3 text-white font-bold font-sans"></h3>
             <p id="modal-message" class="text-sm mb-4"></p>
-            <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="btn-primary w-full p-2 rounded-md font-sans font-semibold">
-                Understood
-            </button>
+            <div id="modal-actions" class="flex space-x-3 w-full">
+                <!-- Buttons injected by JavaScript -->
+            </div>
         </div>
     </div>
 
@@ -165,9 +165,11 @@
                 <p class="text-xs text-gray-400 uppercase tracking-widest">Ledger Code (Share this!)</p>
                 <p class="text-3xl md:text-4xl font-bold font-mono text-[#d47e8c] break-all mt-1" id="current-ledger-code">...loading</p>
             </div>
-            <button onclick="window.showNameConfigModal()" class="btn-secondary mt-3 md:mt-0 p-2 text-sm rounded-lg font-semibold shadow-lg">
-                Rename Users
-            </button>
+            <div class="flex space-x-3 justify-center md:justify-end mt-3 md:mt-0">
+                <button onclick="window.showNameConfigModal()" class="btn-secondary p-2 text-sm rounded-lg font-semibold shadow-lg">
+                    Rename Users
+                </button>
+            </div>
         </div>
 
         <!-- Score Board -->
@@ -208,7 +210,10 @@
                             <option value="nightingale">Assign to User 2</option>
                         </select>
                     </div>
-                    <button onclick="window.addHabit()" class="btn-primary rounded-lg font-sans font-semibold w-full">Add Habit</button>
+                    <div class="flex space-x-3">
+                        <button onclick="window.generateExample('habit')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
+                        <button onclick="window.addHabit()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Add Habit</button>
+                    </div>
                 </div>
 
                 <!-- Habit List -->
@@ -233,8 +238,11 @@
                     <h3 class="text-lg mb-3 text-white">Design New Reward</h3>
                     <input type="text" id="new-reward-title" placeholder="Title (e.g., A Massage)" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
                     <input type="number" id="new-reward-cost" placeholder="Cost (Points)" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="50">
-                    <textarea id="new-reward-desc" placeholder="Detailed description..." class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
-                    <button onclick="window.addReward()" class="btn-primary rounded-lg font-sans font-semibold w-full">Define Reward</button>
+                    <textarea id="new-reward-desc" placeholder="Detailed description..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
+                    <div class="flex space-x-3">
+                        <button onclick="window.generateExample('reward')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
+                        <button onclick="window.addReward()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Reward</button>
+                    </div>
                 </div>
 
                 <!-- Reward List -->
@@ -254,8 +262,11 @@
                 <div id="punishment-form" class="card p-4 rounded-xl mb-6 hidden">
                     <h3 class="text-lg mb-3 text-white">Define New Punishment</h3>
                     <input type="text" id="new-punishment-title" placeholder="Title (e.g., A Task)" class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <textarea id="new-punishment-desc" placeholder="Detailed description of the punishment..." class="w-full p-3 mb-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
-                    <button onclick="window.addPunishment()" class="btn-primary rounded-lg font-sans font-semibold w-full">Add Punishment</button>
+                    <textarea id="new-punishment-desc" placeholder="Detailed description of the punishment..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
+                    <div class="flex space-x-3">
+                        <button onclick="window.generateExample('punishment')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
+                        <button onclick="window.addPunishment()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Add Punishment</button>
+                    </div>
                 </div>
 
                 <!-- Punishment List -->
@@ -272,7 +283,7 @@
         // --- FIREBASE IMPORTS (Using CDN links for single-file deployment) ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, getDoc, setLogLevel, serverTimestamp, FieldValue } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
         
         // 🚨 CRITICAL DEBUG STEP: Turn on verbose logging for Firebase
         setLogLevel('Debug'); 
@@ -317,12 +328,70 @@
         const COLLECTION_NAME = 'ledgers';
         const BASE_PATH = COLLECTION_NAME; 
         
+        // --- NEW EXAMPLE CONTENT (Themed for obedience/intimate structure) ---
+        // These items have a source field to prevent duplicates during auto-sync
+        const EXAMPLE_SOURCE = 'v20251105'; // Unique identifier for this version of defaults
+
+        const EXAMPLE_HABITS = [
+            { description: "Complete morning grooming routine (shower, dress, brush teeth)", points: 15, assignee: "keeper", timesPerDay: 1, source: EXAMPLE_SOURCE },
+            { description: "Send a genuine, detailed check-in message during the workday", points: 10, assignee: "nightingale", timesPerDay: 1, source: EXAMPLE_SOURCE },
+            { description: "Complete 30 minutes of focused work on a non-entertainment goal", points: 25, assignee: "keeper", timesPerDay: 1, source: EXAMPLE_SOURCE },
+            { description: "No use of filler words (um, like, sort of) for one hour", points: 5, assignee: "nightingale", timesPerDay: 2, source: EXAMPLE_SOURCE },
+            { description: "Make the bed and tidy the master bedroom immediately upon rising", points: 15, assignee: "keeper", timesPerDay: 1, source: EXAMPLE_SOURCE },
+            { description: "Perform a required 10-minute stretching or mindfulness exercise", points: 20, assignee: "nightingale", timesPerDay: 1, source: EXAMPLE_SOURCE }
+        ];
+
+        const EXAMPLE_REWARDS = [
+            { title: "One Hour of Uninterrupted Cuddle Time", cost: 50, description: "Recipient dictates the snuggle terms: no phones, no interruptions, just quiet connection.", source: EXAMPLE_SOURCE },
+            { title: "Personal Chauffeur for the Evening", cost: 120, description: "The other user drives you anywhere you want for one evening, including running errands, without complaint.", source: EXAMPLE_SOURCE },
+            { title: "Control of the Remote/Music for 24 Hours", cost: 80, description: "Absolute dominion over all shared media and entertainment for one full day.", source: EXAMPLE_SOURCE },
+            { title: "Custom Bedtime Routine Service", cost: 70, description: "A personalized service including a hot beverage, back rub, and tuck-in by the other user.", source: EXAMPLE_SOURCE },
+        ];
+
+        const EXAMPLE_PUNISHMENTS = [
+            { title: "Write a 500-word Appreciation Letter", description: "Must be handwritten and detail the other user's best qualities and why they are valued.", source: EXAMPLE_SOURCE },
+            { title: "Mandatory 15-Minute Stretching/Meditation", description: "Immediate performance of a calming, structured physical or mental routine upon issuance.", source: EXAMPLE_SOURCE },
+            { title: "Serve a 3-Course Meal", description: "Plan, shop for, cook, and serve a three-course dinner completely alone, providing full cleanup.", source: EXAMPLE_SOURCE },
+            { title: "Assigned Chore of the Day", description: "Requires completing the most despised, backlog chore of the other user's choice.", source: EXAMPLE_SOURCE }
+        ];
+        
         // --- UTILITY FUNCTIONS ---
 
-        // NOTE: This function is defined locally in the module scope.
-        function showModal(title, message) {
+        // Function to show a modal (can be information or confirmation)
+        function showModal(title, message, isConfirmation = false, onConfirm = null) {
             document.getElementById('modal-title').textContent = title;
             document.getElementById('modal-message').textContent = message;
+            const actionsDiv = document.getElementById('modal-actions');
+            actionsDiv.innerHTML = '';
+            
+            const closeModal = () => document.getElementById('modal-container').classList.add('hidden');
+
+            if (isConfirmation) {
+                // Yes Button (Primary)
+                const yesBtn = document.createElement('button');
+                yesBtn.className = 'btn-primary flex-1 p-2 rounded-md font-sans font-semibold';
+                yesBtn.textContent = 'Yes, Proceed';
+                yesBtn.onclick = () => {
+                    closeModal();
+                    if (onConfirm) onConfirm();
+                };
+                actionsDiv.appendChild(yesBtn);
+
+                // No Button (Secondary)
+                const noBtn = document.createElement('button');
+                noBtn.className = 'btn-secondary flex-1 p-2 rounded-md font-sans font-semibold';
+                noBtn.textContent = 'Cancel';
+                noBtn.onclick = closeModal;
+                actionsDiv.appendChild(noBtn);
+            } else {
+                // Info Button
+                const okBtn = document.createElement('button');
+                okBtn.className = 'btn-primary w-full p-2 rounded-md font-sans font-semibold';
+                okBtn.textContent = 'Understood';
+                okBtn.onclick = closeModal;
+                actionsDiv.appendChild(okBtn);
+            }
+
             document.getElementById('modal-container').classList.remove('hidden');
         }
 
@@ -377,7 +446,7 @@
             return localStorage.getItem(LOCAL_STORAGE_KEY);
         }
         
-        // --- LEDGER SELECTION LOGIC ---
+        // --- LEDGER SELECTION & AUTO-SYNC LOGIC ---
 
         function showLedgerSelectionModal() {
             console.log("UI: Showing selection modal.");
@@ -392,6 +461,53 @@
             document.getElementById('ledger-selection-modal').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
         }
+
+        /**
+         * Checks the current ledger against the server's default examples and adds any missing ones.
+         * This prevents duplicates by checking the 'source' tag.
+         */
+        async function autoSyncDefaults() {
+            if (!ledgerCode) return;
+
+            const docRef = doc(db, BASE_PATH, ledgerCode);
+            
+            // Collect the source tags for items already present in the ledger
+            const existingHabitSources = new Set(gameState.habits.map(h => h.source).filter(s => s));
+            const existingRewardSources = new Set(gameState.rewards.map(r => r.source).filter(s => s));
+            const existingPunishmentSources = new Set(gameState.punishments.map(p => p.source).filter(s => s));
+
+            // Filter out examples that are already present (by source tag)
+            const newHabits = EXAMPLE_HABITS
+                .filter(h => !existingHabitSources.has(h.source))
+                .map(h => ({ ...h, id: generateUniqueId() }));
+            
+            const newRewards = EXAMPLE_REWARDS
+                .filter(r => !existingRewardSources.has(r.source))
+                .map(r => ({ ...r, id: generateUniqueId() }));
+
+            const newPunishments = EXAMPLE_PUNISHMENTS
+                .filter(p => !existingPunishmentSources.has(p.source))
+                .map(p => ({ ...p, id: generateUniqueId() }));
+            
+            if (newHabits.length > 0 || newRewards.length > 0 || newPunishments.length > 0) {
+                console.log(`Auto-Sync: Adding ${newHabits.length} habits, ${newRewards.length} rewards, ${newPunishments.length} punishments.`);
+                
+                try {
+                    await updateDoc(docRef, {
+                        habits: [...gameState.habits, ...newHabits],
+                        rewards: [...gameState.rewards, ...newRewards],
+                        punishments: [...gameState.punishments, ...newPunishments]
+                    });
+                    // The onSnapshot listener will handle the UI update
+                } catch (e) {
+                    // Log error but don't halt the app for a non-critical sync failure
+                    console.error("Auto-Sync Failed to update Firestore:", e);
+                }
+            } else {
+                 console.log("Auto-Sync: No new defaults to add.");
+            }
+        }
+
 
         async function tryJoinLedger(code) {
             const docRef = doc(db, BASE_PATH, code);
@@ -424,7 +540,8 @@
 
             let newCode = generateLedgerCode();
             
-            await initializeGameState(newCode); // Creates the document
+            // 1. Initialize the document with default examples
+            await initializeGameState(newCode); 
             
             ledgerCode = newCode;
             document.getElementById('current-ledger-code').textContent = ledgerCode;
@@ -532,6 +649,9 @@
                     gameState.dailyCompletions = data.dailyCompletions || {};
                     
                     updateUI();
+                    
+                    // CRITICAL: Call auto-sync immediately after loading the initial state
+                    autoSyncDefaults();
 
                     // Prompt name configuration if still using defaults
                     if (gameState.player1Name === DEFAULT_KEEPER_NAME && gameState.player2Name === DEFAULT_NIGHTINGALE_NAME) {
@@ -552,29 +672,20 @@
         }
 
         async function initializeGameState(code) {
+             // Attach unique IDs to the default examples before saving
+            const initialHabits = EXAMPLE_HABITS.map(h => ({ ...h, id: generateUniqueId() }));
+            const initialRewards = EXAMPLE_REWARDS.map(r => ({ ...r, id: generateUniqueId() }));
+            const initialPunishments = EXAMPLE_PUNISHMENTS.map(p => ({ ...p, id: generateUniqueId() }));
+
             const initialData = {
                 player1Name: DEFAULT_KEEPER_NAME,
                 player2Name: DEFAULT_NIGHTINGALE_NAME,
                 keeperScore: 0,
                 nightingaleScore: 0,
-                dailyCompletions: {}, // New: Initialize empty
-                habits: [
-                    { id: generateUniqueId(), description: "Take out all trash and recycling", points: 10, assignee: "keeper", timesPerDay: 1 },
-                    { id: generateUniqueId(), description: "Tidy shared kitchen counters", points: 5, assignee: "nightingale", timesPerDay: 2 },
-                    { id: generateUniqueId(), description: "Express one genuine compliment", points: 5, assignee: "keeper", timesPerDay: 3 },
-                    { id: generateUniqueId(), description: "30 minutes of focused work on a personal goal", points: 20, assignee: "nightingale", timesPerDay: 1 },
-                    { id: generateUniqueId(), description: "Drink 2 liters of water (1 point per bottle)", points: 10, assignee: "keeper", timesPerDay: 2 },
-                    { id: generateUniqueId(), description: "No phone usage one hour before sleep", points: 15, assignee: "nightingale", timesPerDay: 1 }
-                ],
-                rewards: [
-                    { id: generateUniqueId(), title: "Weekend Movie Marathon", description: "Choice of three films with snacks provided by the other user.", cost: 100 },
-                    { id: generateUniqueId(), title: "2-Hour 'No Chores' Pass", description: "The redeemed user is exempt from all chores for two hours.", cost: 75 },
-                    { id: generateUniqueId(), title: "Personalized Dessert", description: "A custom-made dessert prepared by the other user.", cost: 50 },
-                ],
-                punishments: [
-                    { id: generateUniqueId(), title: "10 Minutes of Plank Hold", description: "The offending party must hold a plank for 10 minutes (can be broken up)."},
-                    { id: generateUniqueId(), title: "Serve Breakfast in Bed", description: "Requires making and delivering breakfast in bed to the other user the next morning." },
-                ]
+                dailyCompletions: {},
+                habits: initialHabits,
+                rewards: initialRewards,
+                punishments: initialPunishments,
             };
             
             try {
@@ -702,7 +813,6 @@
 
         // --- FORM TOGGLE FUNCTIONS (Exposed globally) ---
 
-        // NOTE: These are exposed to window for inline HTML calls
         window.toggleHabitForm = function() {
             document.getElementById('habit-form').classList.toggle('hidden');
         }
@@ -724,6 +834,44 @@
         window.hideNameConfigModal = function() {
             document.getElementById('name-config-modal').classList.add('hidden');
         }
+        
+        // --- GENERATE EXAMPLE FUNCTION ---
+        window.generateExample = function(type) {
+            let examples, newExample;
+
+            switch (type) {
+                case 'habit':
+                    examples = EXAMPLE_HABITS;
+                    newExample = examples[Math.floor(Math.random() * examples.length)];
+                    document.getElementById('new-habit-desc').value = newExample.description;
+                    document.getElementById('new-habit-points').value = newExample.points;
+                    document.getElementById('new-habit-times').value = newExample.timesPerDay;
+                    // Auto-set the assignee if specified, otherwise keep current selection
+                    if (newExample.assignee) {
+                        document.getElementById('new-habit-assignee').value = newExample.assignee;
+                    }
+                    window.toggleHabitForm();
+                    break;
+                case 'reward':
+                    examples = EXAMPLE_REWARDS;
+                    newExample = examples[Math.floor(Math.random() * examples.length)];
+                    document.getElementById('new-reward-title').value = newExample.title;
+                    document.getElementById('new-reward-cost').value = newExample.cost;
+                    document.getElementById('new-reward-desc').value = newExample.description;
+                    window.toggleRewardForm();
+                    break;
+                case 'punishment':
+                    examples = EXAMPLE_PUNISHMENTS;
+                    newExample = examples[Math.floor(Math.random() * examples.length)];
+                    document.getElementById('new-punishment-title').value = newExample.title;
+                    document.getElementById('new-punishment-desc').value = newExample.description;
+                    window.togglePunishmentForm();
+                    break;
+                default:
+                    showModal("Error", "Invalid example type.");
+            }
+        }
+
 
         // --- CORE APPLICATION LOGIC (CRUD & ACTIONS - Exposed globally) ---
 
@@ -779,7 +927,7 @@
                 description: desc,
                 points: points,
                 assignee: assignee,
-                timesPerDay: timesPerDay, // New field
+                timesPerDay: timesPerDay,
             };
 
             const docRef = doc(db, BASE_PATH, ledgerCode);
