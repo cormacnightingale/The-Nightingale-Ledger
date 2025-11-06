@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Import configuration variables from the separate file
@@ -9,7 +9,7 @@ import { firebaseConfig, appId } from './firebase_config.js';
 
 /**
  * EXAMPLE_DATABASE: Contains a list of pre-defined suggestions for habits, rewards,
- * and punishments. Moved here from index.html for file separation.
+ * and punishments.
  */
 const EXAMPLE_DATABASE = {
     // --- HABITS (Description, Points, Type: 'keeper' or 'nightingale') ---
@@ -96,15 +96,20 @@ window.showModal = function(title, message) {
 function handleError(error, userMessage) {
     console.error(userMessage, error);
     // Only show a generic error message in the UI if the error is severe
-    showModal("Error Occurred", `${userMessage}. Check the console for details.`);
+    window.showModal("Error Occurred", `${userMessage}. Check the console for details.`);
 }
 
 /** Generates a new unique ID for database items. */
 function generateId() {
+    // Check if crypto is available (it should be in modern browsers)
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    // Fallback for older environments or strict security settings
     return 'id-' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 }
 
-// --- UI Logic ---
+// --- UI Logic (Must be attached to window for HTML access) ---
 
 /** Changes the active tab displayed to the user. */
 window.changeTab = function(tabName) {
@@ -125,7 +130,7 @@ window.togglePunishmentForm = () => document.getElementById('punishment-form').c
 /** Generates a random example from the EXAMPLE_DATABASE into the form fields. */
 window.generateExample = function(type) {
     if (!EXAMPLE_DATABASE[type + 's']) {
-        showModal("Error", "Example data is not loaded correctly.");
+        window.showModal("Error", "Example data is not loaded correctly.");
         return;
     }
     
@@ -204,7 +209,7 @@ function createHabitCard(habit) {
     const canComplete = habit.timesCompleted < habit.dailyGoal;
     const completeButton = canComplete
         ? `<button class="btn-primary px-3 py-1 text-sm bg-green-700 hover:bg-green-600" onclick="completeHabit('${habit.id}', '${habit.assignee}', ${habit.points})">
-            <i class="ph ph-check-circle text-lg mr-1"></i>Complete
+            <i class="fas fa-check-circle text-lg mr-1"></i>Complete
            </button>`
         : `<button class="px-3 py-1 text-sm bg-gray-600 text-gray-400 cursor-not-allowed rounded-lg" disabled>
             Goal Met
@@ -223,7 +228,7 @@ function createHabitCard(habit) {
             <div class="flex space-x-2">
                 ${completeButton}
                 <button class="bg-red-700 hover:bg-red-600 text-white p-2 rounded-lg text-sm" onclick="deleteItem('habits', '${habit.id}')">
-                    <i class="ph ph-trash-simple text-lg"></i>
+                    <i class="fas fa-trash-alt text-lg"></i>
                 </button>
             </div>
         </div>
@@ -261,7 +266,7 @@ function createRewardCard(reward) {
                 ${keeperButton}
                 ${nightingaleButton}
                 <button class="bg-red-700 hover:bg-red-600 text-white p-2 rounded-lg text-sm" onclick="deleteItem('rewards', '${reward.id}')">
-                    <i class="ph ph-trash-simple text-lg"></i>
+                    <i class="fas fa-trash-alt text-lg"></i>
                 </button>
             </div>
         </div>
@@ -276,7 +281,7 @@ function createPunishmentCard(punishment) {
                 <p class="text-sm text-gray-400">${punishment.description}</p>
             </div>
             <button class="bg-red-700 hover:bg-red-600 text-white p-2 rounded-lg text-sm" onclick="deleteItem('punishments', '${punishment.id}')">
-                <i class="ph ph-trash-simple text-lg"></i>
+                <i class="fas fa-trash-alt text-lg"></i>
             </button>
         </div>
     `;
@@ -290,7 +295,6 @@ function createPunishmentCard(punishment) {
  */
 async function initializeFirebase() {
     try {
-        // Set log level to see Firebase operations in the console
         setLogLevel('debug'); 
 
         if (!firebaseConfig || !firebaseConfig.projectId || !appId) {
@@ -302,12 +306,12 @@ async function initializeFirebase() {
         db = getFirestore(app);
         auth = getAuth(app);
 
-        // 2. Authenticate Anonymously for public deployment
+        // Authenticate Anonymously for public deployment
         const userCredential = await signInAnonymously(auth);
         userId = userCredential.user.uid;
         document.getElementById('user-id-display').textContent = `User ID: ${userId}`;
         
-        // 3. Define the Firestore path and set up the listener
+        // Define the Firestore path and set up the listener
         GAME_STATE_PATH = `/artifacts/${appId}/users/${userId}/game_data`;
         const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
         
@@ -321,8 +325,7 @@ async function initializeFirebase() {
                 gameState = docSnap.data();
                 renderGameState();
             } else {
-                // This shouldn't happen after initializeDocument, but we handle it
-                showModal("Data Missing", "The ledger document was deleted. Resetting state.");
+                window.showModal("Data Missing", "The ledger document was deleted. Resetting state.");
                 initializeDocument(docRef); // Re-initialize if missing
             }
         }, (error) => {
@@ -338,45 +341,19 @@ async function initializeFirebase() {
 /** Ensures the initial game document exists in Firestore. */
 async function initializeDocument(docRef) {
     try {
-        const docSnap = await updateDoc(docRef, {
-            // Attempt to update (this will fail silently if the doc doesn't exist)
-            timestamp: Date.now()
-        }).catch(async (e) => {
-            // If the update fails (because the document is new), create it.
-            if (e.code === 'not-found' || e.code === 'permission-denied') { // Permission-denied catch just in case.
-                 await setDoc(docRef, gameState);
-                 console.log("Initial ledger document created.");
-            } else {
-                throw e; // Re-throw other errors
-            }
-        });
-
+        // We use a safe check and creation pattern
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            await setDoc(docRef, gameState);
+            console.log("Initial ledger document created.");
+        }
     } catch (e) {
         handleError(e, "Failed to initialize game document in Firestore");
     }
 }
 
-/** * Resets the daily completion count for all habits. 
- * This should ideally be run once per day (e.g., via a Firebase Function or manually).
- * For now, we'll keep it as a manual trigger or omit it, but the logic is ready.
- */
-// async function resetDailyHabits() {
-//     const updatedHabits = gameState.habits.map(habit => ({
-//         ...habit,
-//         timesCompleted: 0
-//     }));
 
-//     const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
-//     try {
-//         await updateDoc(docRef, { habits: updatedHabits });
-//         showModal("Daily Reset", "All habit completion counts have been reset for a new day.");
-//     } catch (e) {
-//         handleError(e, "Failed to reset habits");
-//     }
-// }
-
-
-// --- CRUD Operations ---
+// --- CRUD Operations (Must be attached to window for HTML access) ---
 
 window.addHabit = async function() {
     const desc = document.getElementById('new-habit-desc').value.trim();
@@ -385,7 +362,7 @@ window.addHabit = async function() {
     const assignee = document.getElementById('new-habit-assignee').value;
 
     if (!desc || isNaN(points) || points <= 0 || isNaN(goal) || goal <= 0) {
-        showModal("Invalid Input", "Please provide a valid description, positive points, and a positive daily goal.");
+        window.showModal("Invalid Input", "Please provide a valid description, positive points, and a positive daily goal.");
         return;
     }
 
@@ -406,8 +383,8 @@ window.addHabit = async function() {
         document.getElementById('new-habit-desc').value = '';
         document.getElementById('new-habit-points').value = '10';
         document.getElementById('new-habit-times').value = '1';
-        toggleHabitForm();
-        showModal("Success", "New habit registered!");
+        window.toggleHabitForm();
+        window.showModal("Success", "New habit registered!");
     } catch (e) {
         handleError(e, "Failed to add habit");
     }
@@ -419,7 +396,7 @@ window.addReward = async function() {
     const desc = document.getElementById('new-reward-desc').value.trim();
 
     if (!title || !desc || isNaN(cost) || cost <= 0) {
-        showModal("Invalid Input", "Please provide a title, description, and positive point cost.");
+        window.showModal("Invalid Input", "Please provide a title, description, and positive point cost.");
         return;
     }
 
@@ -438,8 +415,8 @@ window.addReward = async function() {
         document.getElementById('new-reward-title').value = '';
         document.getElementById('new-reward-cost').value = '50';
         document.getElementById('new-reward-desc').value = '';
-        toggleRewardForm();
-        showModal("Success", "New reward registered!");
+        window.toggleRewardForm();
+        window.showModal("Success", "New reward registered!");
     } catch (e) {
         handleError(e, "Failed to add reward");
     }
@@ -450,7 +427,7 @@ window.addPunishment = async function() {
     const desc = document.getElementById('new-punishment-desc').value.trim();
 
     if (!title || !desc) {
-        showModal("Invalid Input", "Please provide a title and a description for the punishment.");
+        window.showModal("Invalid Input", "Please provide a title and a description for the punishment.");
         return;
     }
 
@@ -467,8 +444,8 @@ window.addPunishment = async function() {
         });
         document.getElementById('new-punishment-title').value = '';
         document.getElementById('new-punishment-desc').value = '';
-        togglePunishmentForm();
-        showModal("Success", "New punishment added!");
+        window.togglePunishmentForm();
+        window.showModal("Success", "New punishment added!");
     } catch (e) {
         handleError(e, "Failed to add punishment");
     }
@@ -490,7 +467,7 @@ window.completeHabit = async function(habitId, assignee, points) {
             habits: updatedHabits,
             [`scores.${assignee}`]: newScore
         });
-        showModal("Habit Complete!", `${assignee} gains ${points} points.`);
+        window.showModal("Habit Complete!", `${assignee} gains ${points} points.`);
     } catch (e) {
         handleError(e, "Failed to complete habit");
     }
@@ -498,7 +475,7 @@ window.completeHabit = async function(habitId, assignee, points) {
 
 window.claimReward = async function(rewardId, claimant, cost) {
     if (gameState.scores[claimant] < cost) {
-        showModal("Insufficient Points", `The ${claimant} does not have enough points (Cost: ${cost}, Current: ${gameState.scores[claimant]}).`);
+        window.showModal("Insufficient Points", `The ${claimant} does not have enough points (Cost: ${cost}, Current: ${gameState.scores[claimant]}).`);
         return;
     }
 
@@ -510,7 +487,7 @@ window.claimReward = async function(rewardId, claimant, cost) {
             [`scores.${claimant}`]: newScore
         });
         // We do not remove the reward from the list, as it's a permanent option.
-        showModal("Reward Claimed!", `${claimant} claimed the reward for ${cost} points. Enjoy!`);
+        window.showModal("Reward Claimed!", `${claimant} claimed the reward for ${cost} points. Enjoy!`);
     } catch (e) {
         handleError(e, "Failed to claim reward");
     }
@@ -527,7 +504,7 @@ window.deleteItem = async function(collectionName, itemId) {
         updatePayload[collectionName] = updatedItems;
 
         await updateDoc(docRef, updatePayload);
-        showModal("Item Removed", `Item removed from ${collectionName}.`);
+        window.showModal("Item Removed", `Item removed from ${collectionName}.`);
     } catch (e) {
         handleError(e, `Failed to remove item from ${collectionName}`);
     }
