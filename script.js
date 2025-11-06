@@ -1,6 +1,6 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // --- Global Variables (Provided by Canvas Environment) ---
 // Note: EXAMPLE_DATABASE is expected to be loaded via examples.js first.
@@ -84,7 +84,8 @@ window.showTab = function(tabId) {
  * Initializes Firebase, authenticates the user, and sets up the listener.
  */
 async function initFirebaseAndApp() {
-    setLogLevel('debug');
+    // FIX: setLogLevel must be imported from firebase-app.js (already done in imports)
+    setLogLevel('debug'); 
 
     if (!firebaseConfig) {
         showModal("Configuration Error", "Firebase configuration is missing. The app cannot initialize storage. Please ensure the environment variables are set or firebase_config.js is correctly loaded.");
@@ -136,6 +137,12 @@ async function initFirebaseAndApp() {
  * Sets up the onSnapshot listener for the main game state document.
  */
 function setupGameSnapshotListener() {
+    // Ensure db is initialized before trying to use it
+    if (!db) {
+        console.error("Firestore database instance is not initialized.");
+        return;
+    }
+    
     const docRef = doc(db, GAME_STATE_PATH);
 
     onSnapshot(docRef, (docSnapshot) => {
@@ -337,7 +344,8 @@ function renderHabitLog() {
 
     sortedLog.slice(0, 10).forEach(entry => { // Show last 10 entries
         const player = gameState.players[entry.assignee] || 'Unknown';
-        const date = new Date(entry.timestamp).toLocaleDateString();
+        // Check if timestamp is a valid number before calling toLocaleDateString()
+        const date = new Date(entry.timestamp).getTime() > 0 ? new Date(entry.timestamp).toLocaleDateString() : 'N/A';
         
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -564,6 +572,10 @@ window.addLogEntry = function(type) {
         const reward = gameState.rewards[0];
         
         // Check if current score can afford the reward (always check keeper score for simplicity)
+        // Check the score of the other player ('nightingale') to afford the reward.
+        // Assuming rewards are primarily for 'keeper' to be redeemed against points earned by 'nightingale', 
+        // or vice versa. For simplicity, let's have the "Keeper" redeem it, using the Keeper's score.
+        // In a real app, you'd need a UI to select who is redeeming. Sticking with keeper for now.
         if (gameState.scores.keeper < reward.cost) {
             showModal("Insufficient Points", `${gameState.players.keeper} needs ${reward.cost} points to redeem "${reward.title}", but only has ${gameState.scores.keeper}.`);
             return;
