@@ -121,7 +121,7 @@
 
             <!-- Loading Spinner -->
             <p id="auth-loading" class="text-center text-gray-400 mb-6 flex items-center justify-center space-x-2">
-                <span class="spinner"></span>
+                <span class="spinner"></span> Authenticating Anonymously...
             </p>
 
             <div id="selection-options" class="hidden">
@@ -180,6 +180,9 @@
                 <p class="text-3xl md:text-4xl font-bold font-mono text-[#d47e8c] break-all mt-1" id="current-ledger-code">...loading</p>
             </div>
             <div class="flex space-x-3 justify-center md:justify-end mt-3 md:mt-0">
+                <button onclick="window.confirmResetHabits()" class="btn-secondary p-2 text-sm rounded-lg font-semibold shadow-lg">
+                    Reset Daily Habits
+                </button>
                 <button onclick="window.showNameConfigModal()" class="btn-secondary p-2 text-sm rounded-lg font-semibold shadow-lg">
                     Rename Users
                 </button>
@@ -293,21 +296,52 @@
 
         <!-- Debug/Footer Info -->
         <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500">
-            <p>User ID: <span id="current-user-id">...</span> | App ID: <span id="current-app-id">...</span></p>
+            <p>Ledger is running in a public, anonymous mode suitable for GitHub Pages.</p>
+            <p>User ID: <span id="current-user-id">...</span></p>
         </footer>
 
     </div>
 
-    <!-- MAIN APPLICATION LOGIC (Combined from script.js and examples.js) -->
+    <!-- MAIN APPLICATION LOGIC (GitHub Pages Ready) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, addDoc, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =========================================================================
-        // 1. GLOBAL STATE & FIREBASE SETUP
+        // 1. FIREBASE CONFIGURATION (ACTION REQUIRED)
         // =========================================================================
 
+        /**
+         * IMPORTANT: REPLACE 'YOUR_FIREBASE_CONFIG_OBJECT_HERE' with your
+         * actual Firebase project credentials from the Firebase Console.
+         * The structure should look like:
+         * const firebaseConfig = {
+         * apiKey: "...",
+         * authDomain: "...",
+         * projectId: "...",
+         * // ... other fields
+         * };
+         */
+        const firebaseConfig = {
+
+  apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc",
+
+  authDomain: "nightingaleledger-4627.firebaseapp.com",
+
+  projectId: "nightingaleledger-4627",
+
+  storageBucket: "nightingaleledger-4627.firebasestorage.app",
+
+  messagingSenderId: "299188208241",
+
+  appId: "1:299188208241:web:7bb086293357f4ec4691d0",
+
+  measurementId: "G-5WLM6RZQ0Y"
+
+};
+
+        // --- GLOBAL STATE & FIREBASE SETUP ---
         let db;
         let auth;
         let userId = null;
@@ -316,13 +350,11 @@
         let lastDeletedItem = null;
         let lastDeletedItemCollection = null;
 
-        // Path constants using the application ID (guaranteed by environment)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const LEDGER_COLLECTION = `artifacts/${appId}/public/data/ledgers`; // Shared, public data
-
-        // Derived path (will be set after ledger ID is known)
+        // Note: We use a hardcoded 'appId' for GitHub Pages since we don't have the canvas variable.
+        const APP_ID = 'nightingale-ledger-gh'; 
+        const LEDGER_COLLECTION = `artifacts/${APP_ID}/public/data/ledgers`; 
         let GAME_STATE_PATH = '';
-        const GAME_STATE_DOC_ID = 'state'; // Hardcoded document ID for the single state document
+        const GAME_STATE_DOC_ID = 'state'; 
 
         // Helper functions for UI
         const getEl = (id) => document.getElementById(id);
@@ -351,35 +383,27 @@
         }
 
         /**
-         * Initializes Firebase and handles initial authentication.
+         * Initializes Firebase and handles initial anonymous authentication for GitHub.
          */
         window.initializeFirebase = async function() {
             try {
-                // IMPORTANT: Access the global variables provided by the Canvas environment
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-
-                if (!firebaseConfig) {
-                    throw new Error("Firebase config missing. Please check the environment configuration.");
+                if (typeof firebaseConfig === 'string' || !firebaseConfig.projectId) {
+                    throw new Error("Firebase config is missing or invalid. Please replace 'YOUR_FIREBASE_CONFIG_OBJECT_HERE' with your actual Firebase configuration object.");
                 }
 
                 // Initialize App
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-
-                // Initial Authentication using the provided token or anonymously
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                
+                // Sign in anonymously for simple public use on GitHub Pages
+                await signInAnonymously(auth);
 
                 // Wait for auth state to be resolved
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
                         getEl('current-user-id').textContent = userId;
-                        getEl('current-app-id').textContent = appId;
                         // Hide loading and show selection options
                         getEl('auth-loading').classList.add('hidden');
                         getEl('selection-options').classList.remove('hidden');
@@ -398,9 +422,6 @@
 
         /**
          * Displays a custom modal window (replaces alert/confirm).
-         * @param {string} title
-         * @param {string} message
-         * @param {Array<{text: string, style: string, action: function}>} actions
          */
         function showModal(title, message, actions = [{ text: 'OK', style: 'btn-primary', action: () => hideModal() }]) {
             const container = getEl('modal-container');
@@ -429,8 +450,6 @@
 
         /**
          * Displays a toast notification with an optional undo button.
-         * @param {string} message
-         * @param {boolean} showUndo
          */
         function showToast(message, showUndo = false) {
             const toast = getEl('toast-notification');
@@ -515,6 +534,8 @@
                 habits: [],
                 rewards: [],
                 punishments: [],
+                // New field for daily reset logic
+                lastResetDate: new Date().toISOString().split('T')[0] // YYYY-MM-DD
             };
 
             try {
@@ -601,6 +622,44 @@
                 handleError(e, "Failed to save player names");
             }
         };
+
+        /**
+         * Confirms and performs the daily habit reset.
+         */
+        window.confirmResetHabits = function() {
+            showModal(
+                "Reset Daily Habits?",
+                "This will set the current completion count of ALL habits back to 0, ready for a new day. **Point scores will NOT be affected.** Are you sure?",
+                [
+                    { text: 'Cancel', style: 'btn-secondary', action: () => hideModal() },
+                    { text: 'Reset Habits', style: 'btn-primary', action: () => resetDailyHabits() }
+                ]
+            );
+        };
+
+        /**
+         * Resets the daily count for all habits.
+         */
+        async function resetDailyHabits() {
+            const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
+            
+            // Create a fresh array of habits with currentCount reset
+            const updatedHabits = (gameState.habits || []).map(h => ({
+                ...h,
+                currentCount: 0 // Reset the count
+            }));
+
+            try {
+                await updateDoc(docRef, {
+                    habits: updatedHabits,
+                    lastResetDate: new Date().toISOString().split('T')[0]
+                });
+                showModal("Habits Reset", "All daily habits have been reset to 0! Start tracking a new day.");
+            } catch (e) {
+                handleError(e, "Failed to reset habits");
+            }
+        }
+
 
         // =========================================================================
         // 4. DATA LISTENER (Real-Time Updates)
@@ -861,13 +920,11 @@
             let scoreChange = 0;
             let scoreField = habit.assignee === 'keeper' ? 'keeperScore' : 'nightingaleScore';
 
-            if (delta === 1) { // Increment (only give points once upon reaching target, or always if points are given per completion)
-                 // Simplification: give points for every successful completion up to max.
+            if (delta === 1) { 
                 scoreChange = habit.points;
-            } else if (delta === -1) { // Decrement (remove points)
+            } else if (delta === -1) { 
                 scoreChange = -habit.points;
             }
-
 
             // Update habit and score
             updatedHabits[habitIndex].currentCount = newCount;
@@ -921,9 +978,6 @@
 
         /**
          * Asks for confirmation before redeeming a reward.
-         * @param {string} userRole - 'keeper' or 'nightingale'
-         * @param {string} rewardId
-         * @param {number} cost
          */
         window.confirmRedeem = function(userRole, rewardId, cost) {
             const reward = gameState.rewards.find(r => r.id === rewardId);
@@ -931,7 +985,7 @@
 
             showModal(
                 "Confirm Redemption",
-                `**${userName}**, are you sure you want to redeem **${reward.title}** for **${cost} points**? This action cannot be undone.`,
+                `**${userName}**, are you sure you want to redeem **${reward.title}** for **${cost} points**? This action will subtract points immediately.`,
                 [
                     { text: 'Cancel', style: 'btn-secondary', action: () => hideModal() },
                     { text: 'Redeem', style: 'btn-primary', action: () => redeemReward(userRole, cost) }
@@ -941,13 +995,12 @@
 
         /**
          * Redeems a reward, subtracting points from the user's score.
-         * @param {string} userRole - 'keeper' or 'nightingale'
-         * @param {number} cost
          */
         async function redeemReward(userRole, cost) {
             const scoreField = userRole === 'keeper' ? 'keeperScore' : 'nightingaleScore';
             const currentScore = gameState[scoreField];
-            const newScore = currentScore - parseInt(cost, 10);
+            const costInt = parseInt(cost, 10);
+            const newScore = currentScore - costInt;
 
             if (newScore < 0) {
                 showModal("Error", "Insufficient points to redeem this reward.");
@@ -959,7 +1012,7 @@
                 await updateDoc(docRef, {
                     [scoreField]: newScore
                 });
-                showModal("Redeemed!", `${userRole === 'keeper' ? gameState.keeperName : gameState.nightingaleName} successfully redeemed the reward. ${cost} points deducted.`);
+                showModal("Redeemed!", `${userRole === 'keeper' ? gameState.keeperName : gameState.nightingaleName} successfully redeemed the reward. ${costInt} points deducted.`);
             } catch (e) {
                 handleError(e, "Failed to redeem reward");
             }
@@ -1000,9 +1053,6 @@
 
         /**
          * Prompts for confirmation before deleting any item (Habit, Reward, or Punishment).
-         * @param {string} collectionName - 'habits', 'rewards', or 'punishments'
-         * @param {string} itemId
-         * @param {string} itemName
          */
         window.confirmDeletion = function(collectionName, itemId, itemName) {
             showModal(
@@ -1017,8 +1067,6 @@
 
         /**
          * Deletes an item and sets up the undo state.
-         * @param {string} collectionName
-         * @param {string} itemId
          */
         async function deleteItem(collectionName, itemId) {
             const docRef = doc(db, GAME_STATE_PATH, GAME_STATE_DOC_ID);
@@ -1062,19 +1110,19 @@
 
         const EXAMPLE_DATA = {
             habit: {
-                description: 'Write a 1-page summary of a programming concept.',
-                points: 20,
+                description: 'Meditate for 10 minutes (focus on breathing).',
+                points: 15,
                 times: 1,
                 assignee: 'keeper',
             },
             reward: {
-                title: 'Date Night Decision Power',
-                cost: 75,
-                description: 'The redeemer gets to choose the date night activity (movie, restaurant, game) without consultation.',
+                title: 'No Chores Day',
+                cost: 100,
+                description: 'The redeemer is exempt from all household chores for one calendar day.',
             },
             punishment: {
-                title: 'The Silent Hour',
-                description: 'Must remain completely silent (no talking, texting, or non-work communication) for one full hour.',
+                title: 'The Dish Duty',
+                description: 'Must clean all dishes (including pots and pans) for three days straight.',
             }
         };
 
