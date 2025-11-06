@@ -267,7 +267,7 @@
         import { getFirestore, doc, onSnapshot, setDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         // import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // setLogLevel('Debug'); // Uncomment to see Firebase logs
+        // setLogLevel('Debug'); // Uncomment to see Firebase logs in console if issues persist
 
         // 🚨 IMPORTANT: The manual config below will be overwritten by the Canvas environment.
         const MANUAL_FIREBASE_CONFIG = {
@@ -301,7 +301,7 @@
         
         let ledgerCode = null; 
 
-        // MANDATORY GLOBALS
+        // MANDATORY GLOBALS - Ensuring we use environment variables correctly
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const canvasFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         // Use Canvas config if available, otherwise use the manual config.
@@ -310,7 +310,7 @@
         
         // Firestore Path Definitions (Public Data for Shared State)
         const COLLECTION_NAME = 'ledgers';
-        // The ledgerCode is now the document ID
+        // Documents are stored publicly: artifacts/{appId}/public/data/ledgers/{ledgerCode}
         const BASE_PATH = `artifacts/${appId}/public/data/${COLLECTION_NAME}`; 
         
         // --- UTILITY FUNCTIONS ---
@@ -424,7 +424,7 @@
         
         async function initializeFirebase() {
             try {
-                // 💥 FIX: Ensure all required fields for Auth are present before initializing
+                // 💥 Check: Ensure all required fields for Auth are present before initializing
                 if (!firebaseConfig || 
                     !firebaseConfig.projectId || 
                     !firebaseConfig.apiKey || 
@@ -443,13 +443,12 @@
                     await signInAnonymously(auth);
                 }
 
+                // 🔑 CRITICAL: Wait for authentication state to be confirmed before starting the UI
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         isAuthReady = true;
-                        // Only show the selection options once we are authenticated
                         showLedgerSelectionModal();
                     } else {
-                        // Log a warning if auth fails after sign-in
                         console.warn("Authentication state changed to null. User is not logged in.");
                     }
                 });
