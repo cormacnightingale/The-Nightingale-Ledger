@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // --- Global Variables (Provided by Canvas Environment or User File) ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -24,9 +24,14 @@ const GAME_STATE_COLLECTION = 'ledgers'; // Collection where all ledger data is 
 const LEDGER_DOC_ID_LENGTH = 6; // Length of the random code/document ID
 
 let gameState = {
-    players: {
-        keeper: 'User 1',
-        nightingale: 'User 2'
+    // Customization state (New)
+    customization: {
+        keeperTitle: 'The Keeper',
+        nightingaleTitle: 'The Nightingale',
+        keeperName: 'User 1', // Placeholder for the actual user
+        nightingaleName: 'User 2', // Placeholder for the actual user
+        currentLayout: 'stacked', // 'stacked', 'condensed', 'tabbed'
+        currentTab: 'habits',      // 'habits', 'rewards', 'punishments'
     },
     scores: {
         keeper: 0,
@@ -98,6 +103,34 @@ function showModal(title, message) {
 }
 
 /**
+ * Toggles the visibility of the Options Modal.
+ */
+window.showOptionsModal = function() {
+    // Populate inputs with current state before showing
+    document.getElementById('edit-keeper-name').value = gameState.customization.keeperName;
+    document.getElementById('edit-nightingale-name').value = gameState.customization.nightingaleName;
+    document.getElementById('edit-keeper-title').value = gameState.customization.keeperTitle;
+    document.getElementById('edit-nightingale-title').value = gameState.customization.nightingaleTitle;
+    
+    // Highlight the current layout button
+    document.querySelectorAll('#options-modal button[id^="layout-btn-"]').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+    });
+    const activeBtn = document.getElementById(`layout-btn-${gameState.customization.currentLayout}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-secondary');
+        activeBtn.classList.add('btn-primary');
+    }
+    
+    document.getElementById('options-modal').classList.remove('hidden');
+}
+
+window.hideOptionsModal = function() {
+    document.getElementById('options-modal').classList.add('hidden');
+}
+
+/**
  * Enables the main Host/Join buttons and hides the initialization status.
  */
 function enableAppUI() {
@@ -118,6 +151,34 @@ function enableAppUI() {
 // --- Firebase Interaction ---
 
 /**
+ * Updates the customization part of the remote ledger document.
+ * @param {object} updates - An object containing fields to update in the 'customization' map.
+ */
+async function updateLedgerCustomization(updates) {
+    if (!db || !gameState.ledgerCode) {
+        showModal("Update Failed", "Not connected to a ledger. Cannot save customizations.");
+        return;
+    }
+
+    const ledgerDocRef = doc(db, getLedgerCollectionPath(), gameState.ledgerCode);
+    
+    // Construct the update object to modify nested fields
+    const updatePayload = {};
+    for (const key in updates) {
+        updatePayload[`customization.${key}`] = updates[key];
+    }
+
+    try {
+        await updateDoc(ledgerDocRef, updatePayload);
+        console.log("Customization updated successfully.");
+        // The onSnapshot listener will handle the UI update
+    } catch (error) {
+        console.error("Error updating customization:", error);
+        showModal("Save Error", `Failed to save customization changes. Error: ${error.message}`);
+    }
+}
+
+/**
  * Attaches a real-time listener to the current ledger document.
  */
 function listenToLedger() {
@@ -131,8 +192,20 @@ function listenToLedger() {
     onSnapshot(ledgerDocRef, (docSnap) => {
         if (docSnap.exists()) {
             console.log("Current data:", docSnap.data());
+            
             // Update the global state with the new data
-            Object.assign(gameState, docSnap.data());
+            const remoteData = docSnap.data();
+            // Deep merge customization data if it exists
+            if (remoteData.customization) {
+                 gameState.customization = { ...gameState.customization, ...remoteData.customization };
+            }
+            // Shallow merge other top-level data
+            Object.keys(remoteData).forEach(key => {
+                if (key !== 'customization') {
+                    gameState[key] = remoteData[key];
+                }
+            });
+
             // Re-render the UI based on the new gameState
             renderUI();
         } else {
@@ -149,10 +222,10 @@ function listenToLedger() {
 }
 
 /**
- * Placeholder for the UI rendering logic.
+ * Renders the UI based on the current gameState, including names, titles, and layout.
  */
 function renderUI() {
-    // Hide/show the setup screens vs. the main dashboard
+    // --- 1. Screen Toggles ---
     const setupScreen = document.getElementById('setup-screen');
     const mainScreen = document.getElementById('main-dashboard');
 
@@ -160,16 +233,44 @@ function renderUI() {
         setupScreen.classList.add('hidden');
         mainScreen.classList.remove('hidden');
         document.getElementById('current-ledger-code').textContent = gameState.ledgerCode;
-        // Logic to update scores, habits, rewards, etc. based on gameState
-        document.getElementById('keeper-score').textContent = gameState.scores.keeper;
-        document.getElementById('nightingale-score').textContent = gameState.scores.nightingale;
-        // ... (Additional rendering logic needs implementation later)
     } else {
         setupScreen.classList.remove('hidden');
         mainScreen.classList.add('hidden');
     }
 
-    // Update debug info regardless
+    // --- 2. Score/Title Updates ---
+    document.getElementById('keeper-score').textContent = gameState.scores.keeper;
+    document.getElementById('nightingale-score').textContent = gameState.scores.nightingale;
+    
+    // Update titles and names from customization state
+    document.getElementById('keeper-title').textContent = gameState.customization.keeperTitle;
+    document.getElementById('nightingale-title').textContent = gameState.customization.nightingaleTitle;
+    document.getElementById('keeper-name').textContent = gameState.customization.keeperName;
+    document.getElementById('nightingale-name').textContent = gameState.customization.nightingaleName;
+
+    // --- 3. Layout Rendering ---
+    const layouts = ['stacked', 'condensed', 'tabbed'];
+    layouts.forEach(layout => {
+        const el = document.getElementById(`layout-${layout}`);
+        if (el) {
+            el.classList.add('hidden');
+        }
+    });
+
+    const currentLayoutEl = document.getElementById(`layout-${gameState.customization.currentLayout}`);
+    if (currentLayoutEl) {
+        currentLayoutEl.classList.remove('hidden');
+    }
+    
+    // --- 4. Tabbed Layout Specifics ---
+    if (gameState.customization.currentLayout === 'tabbed') {
+        window.setTab(gameState.customization.currentTab, false); // Render the active tab content
+    }
+    
+    // TODO: Implement habit/reward/punishment list rendering across all relevant lists (stacked, tabbed)
+    // For now, this is just a placeholder and will be built in the next iteration.
+
+    // --- 5. Debug Info Update ---
     updateDebugInfo();
 }
 
@@ -186,31 +287,31 @@ window.hostNewLedger = async function() {
     const newCode = generateLedgerCode();
     // The collection path is constructed here
     const collectionPath = getLedgerCollectionPath(); 
-    const ledgerDocRef = doc(db, collectionPath, newCode); // db is guaranteed to be a Firestore instance here
+    const ledgerDocRef = doc(db, collectionPath, newCode); 
 
     // Initial state for the new ledger
     const initialLedgerData = {
-        ...gameState, // Keep local habits/rewards if any were set
+        customization: gameState.customization, // Include initial customization settings
+        scores: { keeper: 0, nightingale: 0 }, // Reset scores
+        habits: [],
+        rewards: [],
+        punishments: [],
         ledgerCode: newCode,
         hostId: userId,
         createdAt: new Date().toISOString(),
         isHosted: true,
-        // Reset scores for a fresh start on hosting
-        scores: { keeper: 0, nightingale: 0 }
     };
 
     try {
         console.log(`Attempting to host ledger with code: ${newCode} at path: ${collectionPath}`);
         
-        // Check if the document already exists
         const docSnap = await getDoc(ledgerDocRef);
         if (docSnap.exists()) {
             console.warn("Hosting conflict detected. Retrying with new code.");
             showModal("Hosting Conflict", "A ledger with this code already exists. Retrying...");
-            return hostNewLedger(); // Recursively try again with a new code
+            return hostNewLedger();
         }
 
-        // Set the new document
         await setDoc(ledgerDocRef, initialLedgerData);
 
         // Success! Update local state and start listening
@@ -253,8 +354,9 @@ window.joinLedger = async function() {
             const remoteData = docSnap.data();
             gameState.ledgerCode = code;
             gameState.hostId = remoteData.hostId;
-            // Overwrite local state with remote ledger state
-            Object.assign(gameState, remoteData);
+            
+            // Overwrite local state with remote ledger state (onSnapshot will handle final merge)
+            Object.assign(gameState, remoteData); 
 
             console.log(`Joined ledger with code: ${code}`);
             showModal("Joined Successfully", `Connected to ledger ${code}.`);
@@ -271,6 +373,94 @@ window.joinLedger = async function() {
 }
 
 
+// --- Customization Functions ---
+
+/**
+ * Saves the user-defined names (User 1 / User 2 placeholders).
+ */
+window.setPlayerName = function() {
+    const keeperName = document.getElementById('edit-keeper-name').value.trim() || 'User 1';
+    const nightingaleName = document.getElementById('edit-nightingale-name').value.trim() || 'User 2';
+    
+    if (keeperName.length > 30 || nightingaleName.length > 30) {
+        showModal("Name Too Long", "Names must be 30 characters or less.");
+        return;
+    }
+
+    updateLedgerCustomization({
+        keeperName: keeperName,
+        nightingaleName: nightingaleName
+    });
+    window.hideOptionsModal();
+}
+
+/**
+ * Saves the user-defined titles (Keeper / Nightingale).
+ */
+window.setPlayerTitle = function() {
+    const keeperTitle = document.getElementById('edit-keeper-title').value.trim() || 'The Keeper';
+    const nightingaleTitle = document.getElementById('edit-nightingale-title').value.trim() || 'The Nightingale';
+
+    if (keeperTitle.length > 30 || nightingaleTitle.length > 30) {
+        showModal("Title Too Long", "Titles must be 30 characters or less.");
+        return;
+    }
+
+    updateLedgerCustomization({
+        keeperTitle: keeperTitle,
+        nightingaleTitle: nightingaleTitle
+    });
+    window.hideOptionsModal();
+}
+
+/**
+ * Switches and saves the current layout view.
+ * @param {'stacked'|'condensed'|'tabbed'} layout - The layout key.
+ */
+window.setLayout = function(layout) {
+    if (gameState.customization.currentLayout === layout) return;
+    
+    updateLedgerCustomization({
+        currentLayout: layout
+    });
+
+    // Update button styling locally immediately (will be corrected by renderUI if save fails)
+    document.querySelectorAll('#options-modal button[id^="layout-btn-"]').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+    });
+    const activeBtn = document.getElementById(`layout-btn-${layout}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-secondary');
+        activeBtn.classList.add('btn-primary');
+    }
+}
+
+/**
+ * Switches the active tab in the 'tabbed' layout.
+ * @param {'habits'|'rewards'|'punishments'} tab - The tab key.
+ * @param {boolean} saveToDb - Whether to save the active tab preference to the database (default: true).
+ */
+window.setTab = function(tab, saveToDb = true) {
+    if (saveToDb) {
+         updateLedgerCustomization({ currentTab: tab });
+         gameState.customization.currentTab = tab; // Optimistic local update
+    }
+
+    // Toggle tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById(`tab-${tab}`)?.classList.add('active');
+
+    // Toggle tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    document.getElementById(`tab-content-${tab}`)?.classList.remove('hidden');
+}
+
+
 // --- Core Initialization ---
 
 /**
@@ -283,6 +473,9 @@ window.initApp = async function() {
     }
 
     try {
+        // IMPORTANT: Set debug level for easier development
+        setLogLevel('debug');
+        
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
         db = getFirestore(app); // Synchronous initialization of DB instance
@@ -367,7 +560,6 @@ window.toggleSetup = function(section) {
 // Placeholder for generating example data
 window.generateExample = function(type) {
     // Note: The 'examples.js' file is assumed to load the EXAMPLE_DATABASE globally.
-    // The previous error was unrelated to this block.
     if (typeof EXAMPLE_DATABASE === 'undefined' || !EXAMPLE_DATABASE[type + 's']) {
         showModal("Error", "Example data is not loaded correctly. Ensure examples.js is present.");
         return;
@@ -377,18 +569,24 @@ window.generateExample = function(type) {
     const randomIndex = Math.floor(Math.random() * examples.length);
     const example = examples[randomIndex];
 
+    // Determine which input fields to target based on the current layout
+    let suffix = '';
+    if (gameState.customization.currentLayout === 'tabbed') {
+        suffix = '-tab';
+    }
+
     if (type === 'habit') {
-        document.getElementById('new-habit-desc').value = example.description;
-        document.getElementById('new-habit-points').value = example.points;
-        document.getElementById('new-habit-times').value = 1;
-        document.getElementById('new-habit-assignee').value = example.type;
+        document.getElementById('new-habit-desc' + suffix).value = example.description;
+        document.getElementById('new-habit-points' + suffix).value = example.points;
+        document.getElementById('new-habit-times' + suffix).value = 1;
+        document.getElementById('new-habit-assignee' + suffix).value = example.type;
     } else if (type === 'reward') {
-        document.getElementById('new-reward-title').value = example.title;
-        document.getElementById('new-reward-cost').value = example.cost;
-        document.getElementById('new-reward-desc').value = example.description;
+        document.getElementById('new-reward-title' + suffix).value = example.title;
+        document.getElementById('new-reward-cost' + suffix).value = example.cost;
+        document.getElementById('new-reward-desc' + suffix).value = example.description;
     } else if (type === 'punishment') {
-        document.getElementById('new-punishment-title').value = example.title;
-        document.getElementById('new-punishment-desc').value = example.description;
+        document.getElementById('new-punishment-title' + suffix).value = example.title;
+        document.getElementById('new-punishment-desc' + suffix).value = example.description;
     }
 }
 
