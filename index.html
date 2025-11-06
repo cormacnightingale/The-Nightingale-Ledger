@@ -242,7 +242,24 @@
 
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyC6fo56hdBEkCgiHJAIqoNwZN7aNIID4xo",
+    authDomain: "nightingaleledger.firebaseapp.com",
+    projectId: "nightingaleledger",
+    storageBucket: "nightingaleledger.firebasestorage.app",
+    messagingSenderId: "1067784978486",
+    appId: "1:1067784978486:web:f0a41d82b130a6376dd897"
+  };
+
+
+
+
+
+        
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         // import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -828,3 +845,4 @@
     </script>
 </body>
 </html>
+
