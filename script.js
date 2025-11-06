@@ -1,12 +1,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, runTransaction, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, runTransaction, query, where, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // --- Global Variables (Provided by Canvas Environment) ---
 // Note: EXAMPLE_DATABASE is expected to be loaded via examples.js first.
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-// CRITICAL FIX: Reference the global firebaseConfig variable exposed by firebase_config.js
+// CRITICAL: Reference the global firebaseConfig variable exposed by firebase_config.js
+// This relies on firebase_config.js being loaded BEFORE this module.
 const firebaseConfig = typeof firebaseConfig !== 'undefined' ? firebaseConfig : null;
 
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -251,9 +252,12 @@ function renderPunishmentItem(punishment) {
  * Initializes Firebase and sets up authentication.
  */
 async function initializeFirebase() {
+    // Set Firestore log level to Debug for better console information
+    setLogLevel('Debug');
+    
     if (!firebaseConfig) {
         console.error("Firebase config is missing or invalid.");
-        showModal("Setup Error", "Firebase configuration is missing. The app cannot connect to the database.");
+        showModal("Setup Error", "Firebase configuration is missing. The app cannot connect to the database. Ensure firebase_config.js is loaded.");
         return;
     }
 
@@ -292,7 +296,8 @@ async function initializeFirebase() {
         });
     } catch (error) {
         console.error("Error initializing Firebase or signing in:", error);
-        showModal("Auth Error", `Failed to sign in. Please check console for details.`);
+        // Display the specific error message to the user
+        showModal("Auth Error", `Failed to sign in. Error: ${error.message}. Please check your API Key in firebase_config.js.`);
     }
 }
 

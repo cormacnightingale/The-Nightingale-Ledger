@@ -26,59 +26,80 @@
             color: #b05c6c; /* Deep romantic red/plum */
         }
         .card {
-            background-color: #242429; /* Darker card background */
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
-            border-radius: 0.75rem;
-            border: 1px solid #3c3c45;
+            background-color: #242429; /* Darker charcoal background for cards */
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.7);
         }
         .btn-primary {
-            background-color: #b05c6c;
-            color: white;
-            transition: background-color 0.2s;
-            padding: 0.75rem 1rem;
-            min-height: 44px; /* Touch target size */
+            background-color: #b05c6c; /* Primary accent color */
+            color: #fff;
+            padding: 0.75rem 1.25rem;
+            transition: background-color 0.2s, transform 0.1s;
         }
         .btn-primary:hover {
-            background-color: #8c4251;
+            background-color: #c77b8c;
+            transform: translateY(-1px);
         }
         .btn-secondary {
-            background-color: #3c3c45;
+            background-color: #404047; /* Darker grey for secondary actions */
             color: #d4d4dc;
-            transition: background-color 0.2s;
-            padding: 0.75rem 1rem;
-            min-height: 44px; /* Touch target size */
+            padding: 0.75rem 1.25rem;
+            transition: background-color 0.2s, transform 0.1s;
         }
         .btn-secondary:hover {
-            background-color: #4a4a55;
+            background-color: #55555c;
+            transform: translateY(-1px);
         }
-        .tab-button {
-            transition: color 0.2s, border-color 0.2s;
+        /* Custom scrollbar for a darker aesthetic */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
-        .tab-active {
-            color: #b05c6c;
-            border-bottom: 3px solid #b05c6c;
-            font-weight: 700;
+        ::-webkit-scrollbar-track {
+            background: #1a1a1d;
         }
-        .list-item {
-            display: flex;
+        ::-webkit-scrollbar-thumb {
+            background: #404047;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #55555c;
+        }
+        /* Style for the Modal (Hidden by default) */
+        #modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none; /* Hidden by default */
             align-items: center;
-            justify-content: space-between;
-            background-color: #1a1a1d;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            border: 1px solid #3c3c45;
+            justify-content: center;
+            z-index: 50;
         }
-        .action-button {
-            min-width: 44px;
-            min-height: 44px;
+        #modal-content {
+            background-color: #242429;
+            color: #d4d4dc;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
         }
     </style>
 </head>
-<body>
-    <div id="modal-container" class="hidden fixed inset-0 z-50 bg-black bg-opacity-75 flex items-center justify-center p-4">
-        <div id="modal-content" class="card w-full max-w-sm p-6 space-y-4">
-            <h3 id="modal-title" class="text-xl font-bold"></h3>
-            <p id="modal-message" class="text-sm"></p>
+<body class="p-4 md:p-8">
+
+    <!-- Modal for Alerts/Confirmations -->
+    <div id="modal-overlay">
+        <div id="modal-content">
+            <h3 id="modal-title" class="text-xl mb-4 font-bold">Alert</h3>
+            <p id="modal-message" class="mb-6"></p>
             <div class="flex justify-end space-x-3">
                 <button id="modal-cancel-btn" class="btn-secondary rounded-lg font-sans font-semibold hidden">Cancel</button>
                 <button id="modal-confirm-btn" class="btn-primary rounded-lg font-sans font-semibold">OK</button>
@@ -86,72 +107,63 @@
         </div>
     </div>
 
-    <div class="max-w-4xl mx-auto p-4 sm:p-8">
-        <header class="text-center mb-10">
-            <h1 class="text-4xl sm:text-5xl font-bold mb-2 tracking-widest text-[#d4d4dc]">The Nightingale Ledger</h1>
-            <p class="text-lg italic text-[#b05c6c]">A Shared Habit & Reward System</p>
+    <div class="max-w-4xl mx-auto">
+        
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-6xl font-bold mb-2 tracking-wider">The Nightingale Ledger</h1>
+            <p class="text-lg italic text-gray-400">A Shared Accountability System</p>
         </header>
 
-        <!-- Ledger Code / Setup -->
-        <section id="setup-section" class="card p-6 mb-8 text-center space-y-4">
-            <h2 class="text-2xl font-bold mb-4">Ledger Access</h2>
-            <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-                <input type="text" id="ledger-code-input" placeholder="Enter 6-Digit Code or Create New" maxlength="6" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white text-center font-sans uppercase tracking-widest text-lg flex-1">
-                <button onclick="window.joinLedger()" class="btn-primary rounded-lg font-sans font-semibold sm:w-1/3">Join Ledger</button>
+        <!-- Player Setup -->
+        <section class="card mb-12">
+            <h2 class="text-2xl font-bold mb-4">Player Roles & Scores</h2>
+            <div id="player-setup" class="space-y-4">
+                <!-- Inputs for Player Names -->
+                <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4">
+                    <div class="flex-1">
+                        <label for="keeper-name" class="block mb-1 text-sm text-[#b05c6c]">The Keeper (Points Earned)</label>
+                        <input type="text" id="keeper-name" placeholder="Keeper Name" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" onchange="window.savePlayerName('keeper', this.value)">
+                    </div>
+                    <div class="flex-1">
+                        <label for="nightingale-name" class="block mb-1 text-sm text-[#b05c6c]">The Nightingale (Points Redeemed)</label>
+                        <input type="text" id="nightingale-name" placeholder="Nightingale Name" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" onchange="window.savePlayerName('nightingale', this.value)">
+                    </div>
+                </div>
+
+                <!-- Score Display and Reset Button -->
+                <div class="flex flex-col md:flex-row items-center justify-between pt-4 border-t border-[#3c3c45]">
+                    <div class="flex space-x-6 text-xl font-sans font-semibold">
+                        <p>Keeper Score: <span id="keeper-score" class="text-green-400">0</span></p>
+                        <p>Nightingale Score: <span id="nightingale-score" class="text-red-400">0</span></p>
+                    </div>
+                    <button onclick="window.showResetModal()" class="btn-secondary rounded-lg font-sans font-semibold mt-4 md:mt-0">Reset Ledger</button>
+                </div>
             </div>
-            <button onclick="window.createLedger()" class="text-sm text-gray-400 hover:text-[#b05c6c] transition-colors">Generate New Random Code</button>
         </section>
 
-        <!-- Main Dashboard (Hidden initially) -->
-        <div id="dashboard" class="hidden space-y-10">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Habit Definition Section -->
+            <section class="card">
+                <h2 class="text-2xl font-bold mb-4 flex justify-between items-center">
+                    Habit Definitions 
+                    <button onclick="window.toggleHabitForm()" class="btn-primary rounded-lg font-sans font-semibold text-sm py-2 px-4">Add Habit</button>
+                </h2>
 
-            <!-- Scoreboard -->
-            <section class="card p-6 grid grid-cols-2 gap-4 text-center">
-                <h2 class="col-span-2 text-3xl font-bold mb-4">The Balance</h2>
-                
-                <div class="p-4 bg-[#1a1a1d] rounded-lg border border-[#3c3c45] shadow-inner">
-                    <p id="keeper-name" class="text-sm text-gray-400 font-sans tracking-wider uppercase mb-1">KEEPER</p>
-                    <p id="keeper-score" class="text-5xl font-cinzel font-bold text-white">0</p>
-                </div>
-                
-                <div class="p-4 bg-[#1a1a1d] rounded-lg border border-[#3c3c45] shadow-inner">
-                    <p id="nightingale-name" class="text-sm text-gray-400 font-sans tracking-wider uppercase mb-1">NIGHTINGALE</p>
-                    <p id="nightingale-score" class="text-5xl font-cinzel font-bold text-white">0</p>
-                </div>
-                
-                <div class="col-span-2 flex justify-center space-x-3 mt-4">
-                    <button id="undo-button" onclick="window.undoLastAction()" class="btn-secondary rounded-lg font-sans font-semibold disabled:opacity-50" disabled>Undo Last Action</button>
-                </div>
-                
-                <p id="ledger-code-display" class="col-span-2 text-center text-xs text-gray-500 mt-2">Ledger Code: XXX-XXX</p>
-            </section>
-
-            <!-- Tabs for Habits, Rewards, Punishments -->
-            <div class="flex justify-center space-x-4 mb-8 border-b border-[#3c3c45]">
-                <button class="tab-button py-3 px-4 font-cinzel text-lg tab-active" data-tab="habits" onclick="window.switchTab('habits')">Habits</button>
-                <button class="tab-button py-3 px-4 font-cinzel text-lg" data-tab="rewards" onclick="window.switchTab('rewards')">Rewards</button>
-                <button class="tab-button py-3 px-4 font-cinzel text-lg" data-tab="punishments" onclick="window.switchTab('punishments')">Punishments</button>
-            </div>
-
-            <!-- Habits Tab Content -->
-            <section id="tab-habits" class="tab-content space-y-6">
-                <h2 class="text-3xl font-bold mb-4">Habits to Cultivate</h2>
-
-                <!-- Add New Habit Form -->
-                <button onclick="window.toggleHabitForm()" class="btn-secondary w-full rounded-lg font-sans font-semibold flex items-center justify-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                    <span>Define New Habit</span>
-                </button>
-                
-                <div id="habit-form" class="card p-4 space-y-3 hidden">
-                    <input type="text" id="new-habit-desc" placeholder="Habit Description (e.g., Floss teeth)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <div class="grid grid-cols-2 gap-3">
-                        <input type="number" id="new-habit-points" placeholder="Points" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="10">
-                        <select id="new-habit-assignee" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                            <option value="keeper">Assigned to Keeper</option>
-                            <option value="nightingale">Assigned to Nightingale</option>
+                <!-- Add Habit Form (Hidden by Default) -->
+                <div id="add-habit-form" class="bg-[#1a1a1d] p-4 rounded-lg mb-6 space-y-3 hidden">
+                    <h3 class="text-lg font-semibold text-gray-300">New Habit</h3>
+                    <textarea id="new-habit-desc" placeholder="Habit description (e.g., 'Finish today's high-priority work task by 5 PM')." class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-16"></textarea>
+                    
+                    <div class="flex space-x-3">
+                        <input type="number" id="new-habit-points" placeholder="Points" value="10" min="1" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                        <input type="number" id="new-habit-times" placeholder="Times/Day" value="1" min="1" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                        <select id="new-habit-assignee" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                            <option value="keeper">Keeper</option>
+                            <option value="nightingale">Nightingale</option>
                         </select>
                     </div>
+
                     <div class="flex space-x-3">
                         <button onclick="window.generateExample('habit')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
                         <button onclick="window.addHabit()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Habit</button>
@@ -162,23 +174,44 @@
                 <div id="habits-list" class="space-y-3">
                     <p class="text-center py-4 text-gray-500 italic" id="habits-loading">No habits defined yet.</p>
                 </div>
-
             </section>
+            
+            <!-- Daily Log and Tally (Future Section) -->
+            <section class="card">
+                <h2 class="text-2xl font-bold mb-4">Daily Tracker</h2>
 
-            <!-- Rewards Tab Content -->
-            <section id="tab-rewards" class="tab-content space-y-6 hidden">
-                <h2 class="text-3xl font-bold mb-4">Rewards to Earn</h2>
+                <!-- Daily Status/Scoreboard -->
+                <div id="daily-status" class="mb-6 space-y-4">
+                    <p class="text-lg font-sans font-semibold text-gray-300">Mark habits as complete or incomplete below.</p>
+                </div>
 
-                <!-- Add New Reward Form -->
-                <button onclick="window.toggleRewardForm()" class="btn-secondary w-full rounded-lg font-sans font-semibold flex items-center justify-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                    <span>Define New Reward</span>
-                </button>
+                <!-- Habit Checklists - Rendered by JavaScript -->
+                <div id="daily-habits-checklist" class="space-y-3">
+                    <p class="text-center py-4 text-gray-500 italic">Load a habit definition to begin tracking.</p>
+                </div>
 
-                <div id="reward-form" class="card p-4 space-y-3 hidden">
-                    <input type="text" id="new-reward-title" placeholder="Reward Title (e.g., Movie Night)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                    <input type="number" id="new-reward-cost" placeholder="Cost in Points" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="50">
-                    <textarea id="new-reward-desc" placeholder="Detailed description of the reward..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
+                <div class="mt-6 pt-4 border-t border-[#3c3c45]">
+                    <h3 class="text-lg font-semibold text-gray-300 mb-3">Today's Result</h3>
+                    <div class="flex justify-between items-center text-xl font-sans font-semibold">
+                        <p>Points Earned: <span id="daily-earned" class="text-green-400">0</span></p>
+                        <p>Points Lost: <span id="daily-lost" class="text-red-400">0</span></p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Rewards Section -->
+            <section class="card">
+                <h2 class="text-2xl font-bold mb-4 flex justify-between items-center">
+                    Reward Catalog
+                    <button onclick="window.toggleRewardForm()" class="btn-primary rounded-lg font-sans font-semibold text-sm py-2 px-4">Add Reward</button>
+                </h2>
+                
+                <!-- Add Reward Form (Hidden by Default) -->
+                <div id="add-reward-form" class="bg-[#1a1a1d] p-4 rounded-lg mb-6 space-y-3 hidden">
+                    <h3 class="text-lg font-semibold text-gray-300">New Reward</h3>
+                    <input type="text" id="new-reward-title" placeholder="Reward Title (e.g., 'A Quiet Afternoon')" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                    <input type="number" id="new-reward-cost" placeholder="Point Cost" value="100" min="1" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                    <textarea id="new-reward-desc" placeholder="Detailed description of the reward and its terms..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
                     <div class="flex space-x-3">
                         <button onclick="window.generateExample('reward')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
                         <button onclick="window.addReward()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Reward</button>
@@ -189,25 +222,23 @@
                 <div id="rewards-list" class="space-y-3">
                     <p class="text-center py-4 text-gray-500 italic" id="rewards-loading">No rewards defined yet.</p>
                 </div>
-
             </section>
+            
+            <!-- Punishments Section -->
+            <section class="card">
+                <h2 class="text-2xl font-bold mb-4 flex justify-between items-center">
+                    Consequence Registry
+                    <button onclick="window.togglePunishmentForm()" class="btn-primary rounded-lg font-sans font-semibold text-sm py-2 px-4">Add Consequence</button>
+                </h2>
 
-            <!-- Punishments Tab Content -->
-            <section id="tab-punishments" class="tab-content space-y-6 hidden">
-                <h2 class="text-3xl font-bold mb-4">Punishments to Avoid</h2>
-
-                <!-- Add New Punishment Form -->
-                <button onclick="window.togglePunishmentForm()" class="btn-secondary w-full rounded-lg font-sans font-semibold flex items-center justify-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                    <span>Define New Punishment</span>
-                </button>
-
-                <div id="punishment-form" class="card p-4 space-y-3 hidden">
-                    <input type="text" id="new-punishment-title" placeholder="Punishment Title (e.g., Laundry Duty)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
+                <!-- Add Punishment Form (Hidden by Default) -->
+                <div id="add-punishment-form" class="bg-[#1a1a1d] p-4 rounded-lg mb-6 space-y-3 hidden">
+                    <h3 class="text-lg font-semibold text-gray-300">New Consequence</h3>
+                    <input type="text" id="new-punishment-title" placeholder="Consequence Title (e.g., 'The Hand-Written Apology')" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
                     <textarea id="new-punishment-desc" placeholder="Detailed description of the punishment..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
                     <div class="flex space-x-3">
                         <button onclick="window.generateExample('punishment')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                        <button onclick="window.addPunishment()" class=\"btn-primary rounded-lg font-sans font-semibold flex-1\">Define Punishment</button>
+                        <button onclick="window.addPunishment()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Punishment</button>
                     </div>
                 </div>
 
@@ -229,11 +260,10 @@
     <!-- External JavaScript Imports -->
     <!-- 1. The data definitions must load first -->
     <script src="./examples.js"></script>
-    
-    <!-- CRITICAL FIX: The Firebase configuration must load before the main script -->
+    <!-- 2. The firebase config must load second -->
     <script src="./firebase_config.js"></script>
-    
-    <!-- 2. The main application logic (which uses the data) loads next -->
+    <!-- 3. The main application script loads last -->
     <script type="module" src="./script.js"></script>
+
 </body>
 </html>
