@@ -13,15 +13,3 @@ var firebaseConfig = {
   appId: "1:299188208241:web:7bb086293357f4ec4691d0",
   measurementId: "G-5WLM6RZQ0Y"
 };
-
-window.initFirebase = function() {
-  if (!window.firebaseConfig) return;
-  if (window.firebase && !window.firebase.apps?.length) {
-    try {
-      window.firebase.initializeApp(window.firebaseConfig);
-      console.info('Firebase initialized');
-    } catch (e) {
-      console.warn('Firebase init error', e);
-    }
-  }
-};
