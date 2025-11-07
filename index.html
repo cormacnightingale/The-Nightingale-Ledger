@@ -4,18 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Nightingale Ledger: Shared Ledger System</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Fonts for the intimate, themed style -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
     <style>
-        /* * === CSS Custom Properties ===
-         * All theme colors are now controlled by these variables,
-         * which are set dynamically from JavaScript based on settings.
-         */
         :root {
             --color-bg-start: #000000;
             --color-bg-end: #1a1a1c;
@@ -32,11 +24,8 @@
             --color-shadow-primary: rgba(176, 92, 108, 0.2);
             --color-shadow-secondary: rgba(127, 0, 255, 0.1);
         }
-
-        /* === Base & Gradient Background === */
         body {
             font-family: 'Cormorant Garamond', serif;
-            /* Gradient background */
             background-image: linear-gradient(to bottom, var(--color-bg-start), var(--color-bg-end));
             background-attachment: fixed;
             background-repeat: no-repeat;
@@ -52,8 +41,6 @@
             color: var(--color-accent-primary);
             transition: color 0.3s ease;
         }
-
-        /* === Card Styling === */
         .card {
             background-color: var(--color-card-bg);
             border: 2px solid var(--color-border-light);
@@ -65,15 +52,12 @@
             box-shadow: 0 0 20px var(--color-shadow-primary), 0 0 40px var(--color-shadow-secondary);
             transform: translateY(-2px);
         }
-
-        /* === Glowing Button === */
         .glowing-btn {
             background: var(--color-accent-secondary);
             color: var(--color-text-base);
             border: 1px solid var(--color-accent-secondary);
             box-shadow: 0 0 5px var(--color-accent-secondary), 0 0 10px var(--color-accent-secondary);
             transition: all 0.3s ease-in-out;
-            /* Dark glow/outline for text */
             text-shadow: 0 0 4px rgba(0,0,0,0.7);
         }
         .glowing-btn:hover {
@@ -81,11 +65,12 @@
             box-shadow: 0 0 10px var(--color-accent-secondary), 0 0 20px var(--color-accent-secondary);
             transform: scale(1.02);
         }
-        .glowing-btn:active {
-            transform: scale(0.98);
-        }
-
-        /* === Player Scores & Titles === */
+        .glowing-btn:active { transform: scale(0.98); }
+        .glowing-btn-google { background: #4285F4; border-color: #4285F4; box-shadow: 0 0 5px #4285F4; }
+        .glowing-btn-google:hover { background: #357ae8; }
+        .glowing-btn-create { background: #059669; border-color: #059669; box-shadow: 0 0 5px #059669; }
+        .glowing-btn-create:hover { background: #047857; }
+        
         .player-score {
             font-family: 'Cinzel', serif;
             font-size: 2.5rem;
@@ -93,50 +78,25 @@
             text-shadow: 0 0 5px var(--color-score);
             transition: color 0.3s ease, text-shadow 0.3s ease;
         }
-        /* Neon glow only for the default theme's primary color */
         @keyframes neon-glow {
             0%, 100% { text-shadow: 0 0 5px #b05c6c, 0 0 10px #7f00ff, 0 0 15px #b05c6c; }
             50% { text-shadow: 0 0 10px #ff004c, 0 0 20px #ff004c, 0 0 30px #7f00ff; }
         }
-        .neon-title {
-            animation: none; /* Disabled by default */
-        }
-        /* Only apply animation if the accent is the 'Nightingale' default */
+        .neon-title { animation: none; }
         html[data-theme="Nightingale"] .neon-title {
              animation: neon-glow 5s ease-in-out infinite alternate;
         }
-
-        /* === Edit & Tab Buttons === */
         .edit-btn {
-            color: var(--color-text-muted);
-            opacity: 0.7;
-            transition: all 0.2s;
+            color: var(--color-text-muted); opacity: 0.7; transition: all 0.2s;
             cursor: pointer; background: none; border: none;
             padding: 0; margin-left: 0.5rem; line-height: 1;
         }
-        .edit-btn:hover {
-            opacity: 1;
-            color: var(--color-text-base);
-            transform: scale(1.1);
-        }
-        .tab-btn {
-            border-bottom-width: 2px;
-            transition: color 0.2s, border-color 0.2s;
-        }
-        .tab-active {
-            border-color: var(--color-accent-primary);
-            color: var(--color-text-base);
-        }
-        .tab-inactive {
-            border-color: transparent;
-            color: var(--color-text-muted);
-        }
-        .tab-inactive:hover {
-            color: var(--color-text-base);
-        }
-
-        /* === Form & Input Styling === */
-        input[type="text"], input[type="number"], textarea, select {
+        .edit-btn:hover { opacity: 1; color: var(--color-text-base); transform: scale(1.1); }
+        .tab-btn { border-bottom-width: 2px; transition: color 0.2s, border-color 0.2s; }
+        .tab-active { border-color: var(--color-accent-primary); color: var(--color-text-base); }
+        .tab-inactive { border-color: transparent; color: var(--color-text-muted); }
+        .tab-inactive:hover { color: var(--color-text-base); }
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], textarea, select {
             background-color: var(--color-input-bg);
             border: 1px solid var(--color-border-light);
             color: var(--color-text-base);
@@ -150,25 +110,13 @@
             box-shadow: 0 0 5px var(--color-accent-secondary);
         }
         input[type="color"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: 2.5rem; /* 40px */
-            padding: 0;
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            width: 100%; height: 2.5rem; padding: 0;
             border: 1px solid var(--color-border-light);
-            border-radius: 4px;
-            background: transparent;
-            cursor: pointer;
+            border-radius: 4px; background: transparent; cursor: pointer;
         }
-        input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 0;
-            border-radius: 4px;
-        }
-        input[type="color"]::-webkit-color-swatch {
-            border: none;
-            border-radius: 4px;
-        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 4px; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
     </style>
 </head>
 <body class="p-4 sm:p-8">
@@ -186,12 +134,10 @@
         </div>
     </div>
 
-    <!-- Settings Modal (Redesigned) -->
+    <!-- Settings Modal -->
     <div id="settings-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
         <div class="card p-6 w-11/12 max-w-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 class="text-xl font-bold border-b pb-2 border-gray-700">Theme &amp; Customization</h3>
-            
-            <!-- Theme Preset Selection -->
             <div class="space-y-2">
                 <label for="theme-preset-select" class="block text-sm font-medium">Theme Preset</label>
                 <select id="theme-preset-select" class="w-full" onchange="window.handlePresetChange()">
@@ -202,10 +148,7 @@
                 </select>
                 <p class="text-xs text-gray-400">Select a preset to load colors, or customize them below (sets to 'Custom').</p>
             </div>
-
-            <!-- In-Depth Color Customization -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                <!-- Color pickers. oninput sets preset to 'Custom' -->
                 <div class="space-y-2">
                     <label for="color-bg-start" class="block text-sm font-medium">Background Start</label>
                     <input type="color" id="color-bg-start" class="w-full" oninput="window.setPresetToCustom()">
@@ -234,9 +177,7 @@
                     <label for="color-score" class="block text-sm font-medium">Score Text</label>
                     <input type="color" id="color-score" class="w-full" oninput="window.setPresetToCustom()">
                 </div>
-                <!-- Add more color pickers here if needed -->
             </div>
-
             <div class="flex justify-end space-x-4 pt-4">
                 <button onclick="window.closeSettingsModal()" class="glowing-btn px-4 py-2 text-sm rounded">Cancel</button>
                 <button onclick="window.saveSettings()" class="glowing-btn px-4 py-2 text-sm rounded">Save</button>
@@ -244,13 +185,11 @@
         </div>
     </div>
 
-
     <!-- Edit Profile Modal -->
     <div id="profile-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
         <div class="card p-6 w-11/12 max-w-lg space-y-4">
             <h3 id="profile-modal-title" class="text-xl font-bold border-b pb-2 border-gray-700">Edit Profile</h3>
             <input type="hidden" id="profile-modal-player-key" value="">
-            
             <div class="space-y-2">
                 <label for="profile-modal-name" class="block text-sm font-medium">Name</label>
                 <input type="text" id="profile-modal-name" class="w-full">
@@ -263,7 +202,6 @@
                 <label for="profile-modal-color" class="block text-sm font-medium">Theme Color</label>
                 <input type="color" id="profile-modal-color" class="w-full">
             </div>
-
             <div class="flex justify-end space-x-4">
                 <button onclick="window.closeProfileModal()" class="glowing-btn px-4 py-2 text-sm rounded">Cancel</button>
                 <button onclick="window.savePlayerProfile()" class="glowing-btn px-4 py-2 text-sm rounded">Save</button>
@@ -271,15 +209,74 @@
         </div>
     </div>
     
-    <!-- Main Content Area -->
+    <!-- Initial Loading Screen (Default) -->
+    <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-4xl sm:text-6xl font-cinzel text-[#b05c6c] mb-6 neon-title">The Nightingale Ledger</h1>
+        <div class="text-lg text-gray-400 max-w-xl mx-auto space-y-4">
+            <p>Connecting...</p>
+            <!-- This message is updated by auth state -->
+            <p id="auth-error-message" class="text-gray-400"></p>
+        </div>
+    </div>
+
+    <!-- Auth Screen (Hidden by default) -->
+    <div id="auth-screen" class="min-h-screen hidden items-center justify-center p-6">
+        <div class="card p-8 w-full max-w-md space-y-6">
+            <h2 class="text-3xl text-center">Welcome</h2>
+            <p id="auth-form-error" class="text-center text-red-400 hidden"></p>
+            
+            <!-- Email/Pass Form -->
+            <div class="space-y-4">
+                <input type="email" id="auth-email" placeholder="Email" class="w-full">
+                <input type="password" id="auth-password" placeholder="Password (6+ characters)" class="w-full">
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button onclick="window.signInWithEmail()" class="glowing-btn px-4 py-2 rounded w-full">Sign In</button>
+                <button onclick="window.createAccountWithEmail()" class="glowing-btn glowing-btn-create px-4 py-2 rounded w-full">Create Account</button>
+            </div>
+
+            <!-- Separator -->
+            <div class="flex items-center">
+                <div class="flex-grow border-t border-gray-600"></div>
+                <span class="mx-4 text-gray-400">or</span>
+                <div class="flex-grow border-t border-gray-600"></div>
+            </div>
+
+            <!-- Google Sign-In -->
+            <button onclick="window.signInWithGoogle()" class="glowing-btn glowing-btn-google px-4 py-2 rounded w-full flex items-center justify-center">
+                <i class="fab fa-google mr-2"></i> Sign in with Google
+            </button>
+        </div>
+    </div>
+
+    <!-- Ledger Selection Screen (Hidden by default) -->
+    <div id="ledger-select-screen" class="min-h-screen hidden items-center justify-center p-6">
+        <div class="card p-8 w-full max-w-xl space-y-6">
+            <h2 class="text-3xl text-center">Select Your Ledger</h2>
+            <p class="text-center text-gray-400">Welcome! You're not connected to a ledger. Host a new one or join your partner's.</p>
+            
+            <p id="ledger-form-error" class="text-center text-red-400 hidden"></p>
+
+            <!-- Host/Join Form -->
+            <div class="space-y-4">
+                <label for="ledger-code-input" class="block text-sm font-medium">Ledger Code</label>
+                <input type="text" id="ledger-code-input" placeholder="e.g., 'OurVow' or 'PartnerCode'" class="w-full">
+                <p class="text-xs text-gray-400">This code is case-sensitive. Create a new one or enter your partner's code.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button onclick="window.hostLedger()" class="glowing-btn glowing-btn-create px-4 py-2 rounded w-full">Host New Ledger</button>
+                <button onclick="window.joinLedger()" class="glowing-btn px-4 py-2 rounded w-full">Join Ledger</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area (Hidden by default) -->
     <div id="main-content" class="container mx-auto max-w-5xl hidden">
         
         <!-- Header -->
         <header class="text-center py-6 mb-8 relative">
-            <!-- Mobile-friendly text size -->
             <h1 class="text-4xl sm:text-6xl font-bold neon-title mb-4">The Nightingale Ledger</h1>
             <p class="text-lg italic text-gray-400">A Shared Vow of Discipline and Delight</p>
-            <!-- Settings Button -->
             <button onclick="window.openSettingsModal()" class="absolute top-4 right-0 sm:right-4 glowing-btn p-3 rounded-full text-xl leading-none">
                 <i class="fas fa-cog"></i>
             </button>
@@ -290,26 +287,21 @@
             <!-- Keeper Card -->
             <div id="keeper-card" class="card p-6 text-center">
                 <div class="flex items-center justify-center space-x-2 mb-2">
-                    <!-- Title (color applied via JS) -->
                     <h2 id="keeper-title" class="text-3xl">The Keeper</h2>
                 </div>
                 <div class="flex items-center justify-center space-x-2 mb-2">
                     <p id="player-name-keeper" class="text-xl font-semibold inline-block">User 1</p>
-                    <!-- Single Edit Button -->
                     <button onclick="window.openEditProfileModal('keeper')" class="edit-btn"><i class="fas fa-edit"></i></button>
                 </div>
                 <p id="score-keeper" class="player-score">0</p>
             </div>
-
             <!-- Nightingale Card -->
             <div id="nightingale-card" class="card p-6 text-center">
                 <div class="flex items-center justify-center space-x-2 mb-2">
-                    <!-- Title (color applied via JS) -->
                     <h2 id="nightingale-title" class="text-3xl">The Nightingale</h2>
                 </div>
                 <div class="flex items-center justify-center space-x-2 mb-2">
                     <p id="player-name-nightingale" class="text-xl font-semibold inline-block">User 2</p>
-                    <!-- Single Edit Button -->
                     <button onclick="window.openEditProfileModal('nightingale')" class="edit-btn"><i class="fas fa-edit"></i></button>
                 </div>
                 <p id="score-nightingale" class="player-score">0</p>
@@ -319,7 +311,6 @@
         <!-- Tabbed Interface -->
         <div class="mb-12">
             <div class="flex border-b border-[#555]">
-                <!-- Mobile-friendly text size -->
                 <button onclick="window.setActiveTab('habits')" id="tab-habits" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold">Habits</button>
                 <button onclick="window.setActiveTab('rewards')" id="tab-rewards" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold">Rewards</button>
                 <button onclick="window.setActiveTab('punishments')" id="tab-punishments" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold">Punishments</button>
@@ -332,12 +323,9 @@
                     <h3 class="text-2xl">Habit Registry</h3>
                     <button onclick="window.toggleHabitForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto"><i class="fas fa-plus mr-2"></i> Add New Habit</button>
                 </div>
-
-                <!-- New Habit Form -->
                 <div id="habit-form" class="card p-4 space-y-4 hidden">
                     <h4 class="text-xl">Define a New Habit</h4>
                     <input type="text" id="new-habit-desc" placeholder="Habit Description..." class="w-full">
-                    <!-- Mobile-friendly grid -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <input type="number" id="new-habit-points" placeholder="Points (e.g., 10)" min="1" class="w-full">
                         <input type="number" id="new-habit-times" placeholder="Times Per Week (e.g., 3)" min="1" max="7" class="w-full">
@@ -347,15 +335,12 @@
                         <option value="keeper">The Keeper</option>
                         <option value="nightingale">The Nightingale</option>
                     </select>
-                    <!-- Mobile-friendly button layout -->
                     <div class="flex flex-col sm:flex-row justify-between space-y-2 sm:space-y-0 sm:space-x-4">
                          <button onclick="window.fillHabitForm('keeper')" class="glowing-btn px-3 py-1 rounded text-xs bg-red-800 border-red-500"><i class="fas fa-magic"></i> Keeper Example</button>
                         <button onclick="window.fillHabitForm('nightingale')" class="glowing-btn px-3 py-1 rounded text-xs bg-purple-800 border-purple-500"><i class="fas fa-magic"></i> Nightingale Example</button>
                         <button onclick="window.addNewHabit()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500">Save Habit</button>
                     </div>
                 </div>
-
-                <!-- Habit List -->
                 <div id="habits-list" class="space-y-3">
                     <p id="habits-loading">No habits defined yet.</p>
                 </div>
@@ -367,8 +352,6 @@
                     <h3 class="text-2xl">Reward Catalog</h3>
                     <button onclick="window.toggleRewardForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto"><i class="fas fa-plus mr-2"></i> Add New Reward</button>
                 </div>
-                
-                <!-- New Reward Form -->
                 <div id="reward-form" class="card p-4 space-y-4 hidden">
                     <h4 class="text-xl">Define a New Reward</h4>
                     <input type="text" id="new-reward-title" placeholder="Reward Title..." class="w-full">
@@ -379,8 +362,6 @@
                         <button onclick="window.addNewReward()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500">Save Reward</button>
                     </div>
                 </div>
-
-                <!-- Reward List -->
                 <div id="rewards-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <p id="rewards-loading">No rewards defined yet.</p>
                 </div>
@@ -392,8 +373,6 @@
                     <h3 class="text-2xl">Vows of Consequence</h3>
                     <button onclick="window.togglePunishmentForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto"><i class="fas fa-plus mr-2"></i> Add New Punishment</button>
                 </div>
-
-                <!-- New Punishment Form -->
                 <div id="punishment-form" class="card p-4 space-y-4 hidden">
                     <h4 class="text-xl">Define a New Punishment</h4>
                     <input type="text" id="new-punishment-title" placeholder="Punishment Title..." class="w-full">
@@ -403,17 +382,15 @@
                         <button onclick="window.addNewPunishment()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500">Save Punishment</button>
                     </div>
                 </div>
-
-                <!-- Punishment List -->
                 <div id="punishments-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <p id="punishments-loading">No punishments defined yet.</p>
                 </div>
             </section>
 
-            <!-- History Tab Content (Moved) -->
+            <!-- History Tab Content -->
             <section id="content-history" class="p-2 sm:p-6 space-y-6 hidden">
                 <h3 class="text-2xl text-center">Ledger History</h3>
-                <div class="card p-6 h-96 overflow-y-auto"> <!-- Increased height -->
+                <div class="card p-6 h-96 overflow-y-auto">
                     <ul id="history-list" class="space-y-3">
                         <li id="history-loading" class="text-gray-500">Awaiting ledger entry...</li>
                     </ul>
@@ -421,32 +398,17 @@
             </section>
         </div>
         
-        <!-- Debug/Footer Info -->
-        <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500">
-            <p>User ID: <span id="current-user-id">...</span> | App ID: <span id="current-app-id">...</span></p>
+        <!-- Footer Info -->
+        <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500 space-y-2">
+            <p>App ID: <span id="current-app-id">...</span> | Ledger ID: <span id="current-ledger-id">...</span></p>
+            <p>User: <span id="current-user-email">...</span> (<button onclick="window.doSignOut()" class="underline hover:text-white">Sign Out</button>)</p>
         </footer>
 
     </div>
 
-    <!-- Initial Loading/Error Screen -->
-    <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="text-4xl sm:text-6xl font-cinzel text-[#b05c6c] mb-6 neon-title">The Nightingale Ledger</h1>
-        <div class="text-lg text-gray-400 max-w-xl mx-auto space-y-4">
-            <p>Attempting to connect to the shared ledger...</p>
-            <p>
-                If this screen persists, please ensure your environment is configured correctly.
-            </p>
-            <!-- New element for displaying non-critical auth/connection errors -->
-            <p id="auth-error-message" class="text-error mt-4"></p>
-        </div>
-    </div>
-
     <!-- External JavaScript Imports -->
-    <!-- 1. The data definitions must load first -->
     <script src="./examples.js"></script>
-    <!-- 2. The firebase config must load next -->
     <script src="./firebase_config.js"></script>
-    <!-- 3. The main application logic loads last -->
     <script type="module" src="./script.js"></script>
 
 </body>
