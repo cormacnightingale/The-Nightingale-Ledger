@@ -1,9 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// --- Firebase Configuration (MERGED from firebase_config.js) ---
+// --- Firebase Configuration (HARDCODED for standard web deployment) ---
 const firebaseConfig = {
+  // NOTE: If you deploy this, replace this with your actual Firebase config
   apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc",
   authDomain: "nightingaleledger-4627.firebaseapp.com",
   projectId: "nightingaleledger-4627",
@@ -13,11 +14,9 @@ const firebaseConfig = {
   measurementId: "G-5WLM6RZQ0Y"
 };
 
-// --- App Constants ---
-// Use a static, consistent ID for this application instance
+// --- App Constants (Static for standard deployment) ---
 const appId = 'nightingale-ledger-v1'; 
 const GAME_STATE_DOC_ID = 'ledger_data';
-const initialAuthToken = null; // Not used in standard web deployment
 
 // --- Firebase/App State ---
 let app;
@@ -41,7 +40,7 @@ let gameState = {
     history: []
 };
 
-// --- Utility Functions (Modal and Toggling are the same) ---
+// --- Utility Functions ---
 
 /**
  * Custom modal implementation for alerts and notices (replaces window.alert/confirm).
@@ -52,29 +51,32 @@ let gameState = {
  */
 function showModal(title, message, onConfirm = null, showConfirm = false) {
     const modal = document.getElementById('custom-modal');
-    document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-message').textContent = message;
-
     const confirmBtn = document.getElementById('modal-confirm-btn');
     const cancelBtn = document.getElementById('modal-cancel-btn');
-    cancelBtn.textContent = 'Close'; // Reset close button text
+    
+    document.getElementById('modal-title').textContent = title || "System Notice";
+    document.getElementById('modal-message').textContent = message || "An unspecified error occurred.";
 
+    // Always define the close handler first
+    cancelBtn.onclick = () => {
+        modal.classList.add('hidden');
+    };
+    
+    // Handle confirmation vs. simple close
     if (showConfirm) {
         confirmBtn.classList.remove('hidden');
         cancelBtn.classList.remove('hidden');
+        cancelBtn.textContent = 'Cancel';
+
         confirmBtn.onclick = () => {
             modal.classList.add('hidden');
             if (onConfirm) onConfirm();
         };
-        cancelBtn.onclick = () => {
-            modal.classList.add('hidden');
-        };
     } else {
+        // Simple close mode
         confirmBtn.classList.add('hidden');
         cancelBtn.classList.remove('hidden'); 
-        cancelBtn.onclick = () => {
-            modal.classList.add('hidden');
-        };
+        cancelBtn.textContent = 'Close';
     }
 
     modal.classList.remove('hidden');
@@ -455,8 +457,8 @@ window.alert = function(message) {
  * Listens for real-time changes to the ledger data.
  */
 function listenToGameState() {
-    // Construct the path for public/shared data
-    // Path: /artifacts/{appId}/public/data/ledger_state/ledger_data
+    // STANDARD PUBLIC DATA PATH CONSTRUCTION: uses static appId
+    // Path: artifacts/{appId}/public/data/ledger_state/ledger_data
     GAME_STATE_PATH = `artifacts/${appId}/public/data/ledger_state/${GAME_STATE_DOC_ID}`;
 
     // Set up a real-time listener for the shared document
@@ -482,7 +484,6 @@ function listenToGameState() {
         showModal("Connection Error", `Could not connect to the shared ledger. Please check your network. Details: ${error.message}`);
     });
 
-    // In a production app, you might return the unsubscribe function to clean up later.
     return unsubscribe; 
 }
 
@@ -507,10 +508,10 @@ async function initFirebase() {
         db = getFirestore(app);
         auth = getAuth(app);
         
-        // 3. Authenticate User (Standard Anonymous Sign-in for web deployment)
+        // 3. Authenticate User (STANDARD ANONYMOUS SIGN-IN)
         const userCredential = await signInAnonymously(auth);
         
-        // 4. Set User ID (for footer display and database path construction)
+        // 4. Set User ID 
         userId = userCredential.user.uid;
         console.log("Authenticated anonymously with User ID:", userId);
 
@@ -519,8 +520,10 @@ async function initFirebase() {
 
     } catch (error) {
         console.error("Firebase Initialization Failed:", error);
+        // Display detailed error on the loading screen
         document.getElementById('auth-error-message').textContent = `Authentication Error: ${error.message}`;
-        showModal("Authentication Failed", `Could not sign in to Firebase. Details: ${error.message}`);
+        // Trigger the modal with a specific message
+        showModal("Authentication Failed", `Could not sign in to Firebase. Please check your network and your Firestore Security Rules. Details: ${error.message}`);
     }
 }
 
