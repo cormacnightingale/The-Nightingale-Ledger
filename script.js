@@ -871,3 +871,6 @@ window.fillPunishmentForm = function() {
     document.getElementById('new-punishment-desc').value = example.description;
     if (document.getElementById('punishment-form').classList.contains('hidden')) { window.togglePunishmentForm(true); }
 }
+
+// --- Initialization ---
+window.onload = initFirebase;
