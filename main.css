@@ -1,0 +1,24 @@
+body {
+  background: #f7f5f9;
+  color: #222;
+  font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+  margin: 0;
+  transition: background 0.3s, color 0.3s;
+}
+/* Card Styles, Completed Styles, Buttons */
+.profile-card, .habit-card, .task, .completed-list { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px #09181a19; margin: 16px; padding: 24px; display: inline-block; transition: background 0.45s, color 0.45s; }
+.completed { opacity: 0.55; text-decoration: line-through; }
+.habit-title, .task-title { font-weight: bold; font-size: 1.3em; }
+.edit-profile-btn { background: #222; color: #fff; border: none; border-radius: 4px; padding: 8px 16px; margin-top: 12px; cursor: pointer; transition: background 0.25s; }
+.edit-profile-btn:hover { background: #444; }
+.complete-habit-btn { background: #245fc6; color: #fff; padding: 8px 16px; border: none; border-radius: 4px; margin: 8px 0; cursor: pointer; transition: background 0.25s; }
+.complete-habit-btn[disabled] { opacity: 0.5; }
+/* Dark Romantic Theme */
+.theme-dark-romantic { --bg-color: #1a1a22; --card-bg: #232333; --text-color: #ffc2e2; --accent-color: #9d174d; background: var(--bg-color); color: var(--text-color); }
+.theme-dark-romantic .profile-card, .theme-dark-romantic .habit-card, .theme-dark-romantic .task { background: var(--card-bg); color: var(--text-color); border: 2px solid var(--accent-color); }
+/* Goth Theme */
+.theme-goth { --bg-color: #0a0a0e; --card-bg: #181824; --text-color: #d1d1db; --accent-color: #5b21b6; background: var(--bg-color); color: var(--text-color); }
+.theme-goth .profile-card, .theme-goth .habit-card, .theme-goth .task { background: var(--card-bg); color: var(--text-color); border: 2px solid var(--accent-color); }
+/* Toast styles */
+.toast { position: fixed; bottom: 32px; right: 32px; background: #181824cc; color: #fff; padding: 16px 24px; border-radius: 8px; box-shadow: 0 2px 12px #000a; z-index: 9999; font-size: 18px; }
+.undo-btn { background: var(--accent-color, #245fc6); color: #fff; border: none; margin-left: 8px; padding: 4px 12px; border-radius: 4px; cursor: pointer; }
