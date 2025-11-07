@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+// Reduced imports to only necessary auth functions for anonymous/custom token sign-in
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Set Firestore log level to Debug for better visibility
@@ -28,7 +29,7 @@ let gameState = {
     punishments: [],
     pending_rewards: [],
     pending_punishments: [],
-    history: [] // NEW: Log of completed rewards and punishments
+    history: [] // Log of completed rewards and punishments
 };
 
 // --- Utility Functions ---
@@ -43,6 +44,7 @@ async function saveGameState() {
         return;
     }
     try {
+        // Use setDoc to create or overwrite the single shared document
         await setDoc(doc(db, GAME_STATE_DOC_PATH), gameState);
         console.log("Game state successfully saved to Firestore.");
     } catch (e) {
@@ -115,8 +117,6 @@ function startPublicDataListener() {
         document.getElementById('main-content').classList.add('hidden');
     });
 
-    // We don't return unsubscribe here because it's a global app state listener,
-    // but in a larger app, you would manage this cleanup.
     console.log("Public data listener started.");
 }
 
@@ -156,7 +156,7 @@ function updateUI() {
     renderRewards();
     renderPunishments();
     renderPendingItems();
-    // 4. Update History (NEW)
+    // 4. Update History
     renderHistory();
 }
 
@@ -166,14 +166,15 @@ function updateUI() {
 function createHabitElement(habit, index, playerType) {
     const isKeeper = playerType === 'keeper';
     const habitColor = isKeeper ? 'bg-[#5c4a4e]' : 'bg-[#555a68]';
-    const playerIcon = isKeeper ? '<i class="fa-solid fa-feather-pointed"></i>' : '<i class="fa-solid fa-key"></i>';
+    // Keeper: Feather (Nightingale), Nightingale: Key (Keeper/Lock)
+    const playerIcon = isKeeper ? '<i class="fa-solid fa-key"></i>' : '<i class="fa-solid fa-feather-pointed"></i>'; 
     const playerName = isKeeper ? gameState.keeper.name : gameState.nightingale.name;
 
     const li = document.createElement('li');
     li.className = `${habitColor} p-4 rounded-lg shadow-md flex justify-between items-center mb-3 transition-all duration-300`;
     li.innerHTML = `
         <div>
-            <p class="text-sm text-gray-300 mb-1">${playerIcon} ${playerName} (+${habit.points})</p>
+            <p class="text-sm text-gray-300 mb-1">${playerIcon} ${playerName} gets (+${habit.points})</p>
             <p class="font-medium">${habit.description}</p>
         </div>
         <div class="flex items-center space-x-2">
@@ -362,6 +363,7 @@ function renderHistory() {
         document.getElementById('history-loading').classList.add('hidden');
     }
 
+    // Iterate backwards so most recent is displayed first
     gameState.history.forEach(entry => {
         const el = createHistoryElement(entry);
         historyList.appendChild(el);
@@ -384,7 +386,7 @@ function createHistoryElement(entry) {
     if (entry.type === 'reward_approved') {
         icon = '<i class="fa-solid fa-trophy text-yellow-500 mr-2"></i>';
         color = 'bg-[#182a18] border-l-4 border-yellow-500';
-        text = `Reward <strong>"${entry.details.rewardTitle}"</strong> approved (Cost: ${entry.details.cost} <i class="fa-solid fa-gem"></i>).`;
+        text = `Reward <strong>"${entry.details.rewardTitle}"</strong> purchased (Cost: ${entry.details.cost} <i class="fa-solid fa-gem"></i>).`;
     } else if (entry.type === 'punishment_assigned') {
         icon = '<i class="fa-solid fa-handcuffs text-red-500 mr-2"></i>';
         color = 'bg-[#2a1818] border-l-4 border-red-500';
@@ -437,8 +439,7 @@ window.markHabitComplete = function(index, playerType) {
     const habit = player.habits[index];
 
     if (habit) {
-        // Add points
-        // The other player receives the points from the completed habit
+        // Add points to the OPPOSITE player (who gets the reward for the partner completing the habit)
         const recipientType = playerType === 'keeper' ? 'nightingale' : 'keeper';
         gameState[recipientType].points += habit.points;
         
@@ -459,8 +460,7 @@ window.deleteHabit = function(index, playerType) {
     const player = gameState[playerType];
     
     if (player.habits[index]) {
-        // Replaced window.confirm with console log as per instructions
-        console.warn("Habit deletion initiated. In a production environment, this would require a custom modal confirmation.");
+        console.warn("Habit deletion initiated.");
         player.habits.splice(index, 1);
         saveGameState();
     }
@@ -475,8 +475,8 @@ window.requestReward = function(index) {
     const reward = gameState.rewards[index];
     if (!reward) return;
 
-    // Determine the user's current player role (using a simple name matching for now)
-    const currentUserName = auth.currentUser?.displayName || 'User'; 
+    // Use a generic name for the requester since we're using anonymous auth
+    const currentUserName = gameState.keeper.name === userId ? gameState.keeper.name : (gameState.nightingale.name === userId ? gameState.nightingale.name : (auth.currentUser?.uid || 'A User'));
     
     // Check if the reward is already pending
     const isPending = gameState.pending_rewards.some(p => p.rewardIndex === index);
@@ -486,7 +486,8 @@ window.requestReward = function(index) {
         return;
     }
     
-    const currentPoints = gameState.keeper.points + gameState.nightingale.points; // Simplified shared pool check
+    // Check if the cost is covered by the shared pool
+    const currentPoints = gameState.keeper.points + gameState.nightingale.points;
     
     if (currentPoints < reward.cost) {
         document.getElementById('auth-error-message').textContent = `Not enough points! Total points required: ${reward.cost}.`;
@@ -529,8 +530,8 @@ window.approveReward = function(pendingIndex) {
         if (gameState.nightingale.points >= pointsToDeduct) {
             gameState.nightingale.points -= pointsToDeduct;
         } else {
-            // Should ideally not happen if points check passed, but for safety
             console.error("Critical Error: Insufficient points during approval deduction.");
+            document.getElementById('auth-error-message').textContent = "ERROR: Insufficient points were detected during approval. Please refresh.";
             return;
         }
     }
@@ -551,6 +552,7 @@ window.approveReward = function(pendingIndex) {
 
 /**
  * Rejects a pending reward and removes it from the pending list.
+ * This is NOT logged to history as it is a non-completed transaction.
  * @param {number} pendingIndex - Index in the pending_rewards array.
  */
 window.rejectReward = function(pendingIndex) {
@@ -575,7 +577,7 @@ window.assignPunishment = function(index) {
         return;
     }
 
-    const currentUserName = auth.currentUser?.displayName || 'User'; 
+    const currentUserName = gameState.keeper.name === userId ? gameState.keeper.name : (gameState.nightingale.name === userId ? gameState.nightingale.name : (auth.currentUser?.uid || 'A User'));
 
     gameState.pending_punishments.push({
         punishmentIndex: index,
@@ -606,7 +608,7 @@ window.completePunishment = function(pendingIndex) {
     logHistoryEntry('punishment_completed', {
         punishmentTitle: punishment.title,
         assigner: pendingReq.assignerName,
-        completedBy: auth.currentUser?.displayName || 'User'
+        completedBy: auth.currentUser?.uid || 'Anonymous User'
     });
     
     gameState.pending_punishments.splice(pendingIndex, 1);
@@ -615,6 +617,7 @@ window.completePunishment = function(pendingIndex) {
 
 /**
  * Removes a pending punishment (reject/remove assignment).
+ * This is NOT logged to history as it is a non-completed transaction.
  * @param {number} pendingIndex - Index in the pending_punishments array.
  */
 window.rejectPunishment = function(pendingIndex) {
@@ -816,26 +819,6 @@ window.fillPunishmentForm = function() {
 // --- Authentication & Initialization ---
 
 /**
- * Handles Google Sign-In using Firebase Popup.
- */
-window.signInWithGoogle = async function() {
-    const provider = new GoogleAuthProvider();
-    try {
-        await signInWithPopup(auth, provider);
-        console.log("Google Sign-In successful.");
-        // onAuthStateChanged listener will handle the rest
-    } catch (error) {
-        // Handle errors like closed popup, unauthorized domain, etc.
-        console.error("Google Sign-In Error:", error);
-        let message = `Sign-In Failed: ${error.code.replace('auth/', '').replace(/-/g, ' ')}.`;
-        if (error.code === 'auth/popup-closed-by-user') {
-            message = "Sign-In cancelled.";
-        }
-        document.getElementById('auth-error-message').textContent = message;
-    }
-}
-
-/**
  * Initializes Firebase, authenticates the user, and starts data listening.
  */
 async function initAuthAndDB() {
@@ -862,11 +845,9 @@ async function initAuthAndDB() {
             try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
-                    // This signs the user in, which triggers onAuthStateChanged again (with a user)
                     console.log("Signed in with custom token.");
                 } else {
                     await signInAnonymously(auth);
-                    // This signs the user in, which triggers onAuthStateChanged again (with a user)
                     console.log("Signed in anonymously.");
                 }
             } catch (error) {
@@ -883,8 +864,6 @@ async function initAuthAndDB() {
         document.getElementById('current-user-id').textContent = userId;
 
         isInitialAuthResolved = true;
-
-        // Note: The main loading screen removal is now handled by startPublicDataListener's success callback
     });
 }
 
