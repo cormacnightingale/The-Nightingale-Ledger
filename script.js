@@ -8,7 +8,6 @@ setLogLevel('Debug');
 
 // --- Global Variables (Canvas Environment) ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-// Check window.firebaseConfig as a fallback if __firebase_config is not defined
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : (window.firebaseConfig || {});
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
 
@@ -18,31 +17,35 @@ let db;
 let auth;
 let userId = null;
 let userSlot = null; // 'nightingale' or 'keeper'
-// Path for public/shared data: artifacts/{appId}/public/data/ledger_state/{docId}
 const GAME_STATE_DOC_PATH = `artifacts/${appId}/public/data/ledger_state/ledger_data`; 
 const GAME_STATE_DOC_ID = 'ledger_data';
 
-// New default profile structure
+// --- Undo State (New) ---
+let lastDeletedItem = null;
+let lastDeletedCollection = null;
+let lastDeletedIndex = null;
+let toastTimeout = null;
+
 const defaultProfile = {
     name: 'New Partner',
-    avatarUrl: '', // Placeholder URL is set in HTML/render logic if this is blank
+    avatarUrl: '', 
     status: 'Neutral',
-    slot: null // 'nightingale' or 'keeper'
+    slot: null 
 };
 
 const defaultGameState = {
     nightingaleScore: 0,
     keeperScore: 0,
-    authorizedUsers: [], // Array of up to two user UIDs
-    profiles: {},        // Map of {userId: {name, avatarUrl, status, slot}}
-    habits: [],
+    authorizedUsers: [], 
+    profiles: {},        
+    habits: [], // Habits now include a 'repeat' property
     rewards: [],
     punishments: [],
 };
 
-let gameState = { ...defaultGameState }; // Start with defaults
+let gameState = { ...defaultGameState }; 
 
-// --- Core Ledger Data Management ---
+// --- Core Ledger Data Management (Authentication, Initialization, Listener) ---
 
 /**
  * Hides the main app content and displays an error message on the loading screen.
@@ -74,12 +77,8 @@ async function initializeAppAndAuth() {
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 userId = user.uid;
-                // Display User ID in settings
                 document.getElementById('current-user-id').textContent = userId;
-
                 console.log(`User authenticated with ID: ${userId}.`);
-                
-                // Once authenticated, start listening to the public game state
                 setupLedgerListener();
             } else {
                 userId = null;
@@ -104,7 +103,7 @@ function setupLedgerListener() {
             const remoteState = docSnapshot.data();
             gameState = { ...defaultGameState, ...remoteState };
             
-            // --- Two-User Lock Logic ---
+            // --- Two-User Lock Logic (Same as before) ---
             let users = gameState.authorizedUsers || [];
             let profiles = gameState.profiles || {};
             
@@ -113,7 +112,6 @@ function setupLedgerListener() {
             
             if (!isAuthorized) {
                 if (users.length < 2) {
-                    // New user joining the ledger
                     users = [...users, userId];
                     const slot = users.length === 1 ? 'nightingale' : 'keeper';
                     const name = slot.charAt(0).toUpperCase() + slot.slice(1);
@@ -122,17 +120,12 @@ function setupLedgerListener() {
                     
                     userSlot = slot;
                     requiresUpdate = true;
-                    
-                    console.log(`New user joining as: ${slot}`);
                 } else {
-                    // Third user attempting to join
                     lockApp(`The ledger is currently locked to two authorized users. Your User ID (${userId}) is not permitted.`);
                     return; 
                 }
             } else {
-                // Authorized user, ensure profile exists and determine their slot
                 if (!profiles[userId]) {
-                    // If user is authorized but profile is missing (shouldn't happen often)
                     userSlot = users.length === 1 ? 'nightingale' : (users[0] === userId ? 'nightingale' : 'keeper');
                     const name = userSlot.charAt(0).toUpperCase() + userSlot.slice(1);
                     profiles[userId] = { ...defaultProfile, name: name, slot: userSlot };
@@ -143,14 +136,11 @@ function setupLedgerListener() {
             }
 
             if (requiresUpdate) {
-                // Update Firestore if we added a new authorized user or fixed a profile
                 await updateDoc(docRef, { authorizedUsers: users, profiles: profiles });
             }
 
-            // Data loaded and user authorized, now render
             renderLedger();
             
-            // Hide loading screen and show app content
             document.getElementById('loading-screen').classList.add('hidden');
             document.getElementById('app-content').classList.remove('hidden');
 
@@ -162,8 +152,6 @@ function setupLedgerListener() {
             gameState.authorizedUsers = [userId];
             gameState.profiles[userId] = initialProfile;
             userSlot = initialSlot;
-
-            console.log("Ledger document does not exist. Creating default state with user as Nightingale.");
             
             await setDoc(docRef, gameState)
                 .then(() => console.log("Default ledger state created successfully."))
@@ -197,16 +185,11 @@ async function updateGameState(updates) {
 
 // --- Rendering Functions ---
 
-/**
- * Renders the entire ledger based on the current gameState.
- */
 function renderLedger() {
     
-    // Find the current authorized users based on their assigned slot
     const nightingaleUser = gameState.authorizedUsers.find(uid => gameState.profiles[uid]?.slot === 'nightingale');
     const keeperUser = gameState.authorizedUsers.find(uid => gameState.profiles[uid]?.slot === 'keeper');
 
-    // Get profiles, use default fallbacks if missing
     const nightingaleProfile = nightingaleUser ? gameState.profiles[nightingaleUser] : { ...defaultProfile, name: 'Nightingale', slot: 'nightingale' };
     const keeperProfile = keeperUser ? gameState.profiles[keeperUser] : { ...defaultProfile, name: 'Keeper', slot: 'keeper' };
 
@@ -216,14 +199,12 @@ function renderLedger() {
     document.getElementById('nightingale-name-display').textContent = nightingaleProfile.name;
     document.getElementById('nightingale-status-display').textContent = nightingaleProfile.status;
     document.getElementById('nightingale-score').textContent = gameState.nightingaleScore || 0;
-    // Avatar fallback: if URL is empty, use a placeholder with the first letter of the name
     document.getElementById('nightingale-avatar').src = nightingaleProfile.avatarUrl || `https://placehold.co/48x48/B05C6C/ffffff?text=${nightingaleProfile.name.charAt(0)}`;
     
     // Keeper
     document.getElementById('keeper-name-display').textContent = keeperProfile.name;
     document.getElementById('keeper-status-display').textContent = keeperProfile.status;
     document.getElementById('keeper-score').textContent = gameState.keeperScore || 0;
-    // Avatar fallback
     document.getElementById('keeper-avatar').src = keeperProfile.avatarUrl || `https://placehold.co/48x48/5C8CB0/ffffff?text=${keeperProfile.name.charAt(0)}`;
 
     // Update forms with current names
@@ -240,7 +221,7 @@ function renderLedger() {
 }
 
 /**
- * Renders the Habit list, using the custom player names.
+ * Renders the Habit list, now including repeat information.
  */
 function renderHabits(nightingaleProfile, keeperProfile) {
     const listEl = document.getElementById('habits-list');
@@ -255,6 +236,7 @@ function renderHabits(nightingaleProfile, keeperProfile) {
         const isNightingale = habit.type === 'nightingale';
         const playerClass = isNightingale ? 'text-nightingale' : 'text-keeper';
         const playerLabel = isNightingale ? nightingaleProfile.name : keeperProfile.name;
+        const repeatLabel = habit.repeat.charAt(0).toUpperCase() + habit.repeat.slice(1);
 
         return `
             <div class="list-item">
@@ -262,6 +244,7 @@ function renderHabits(nightingaleProfile, keeperProfile) {
                     <p class="text-lg text-gray-200 truncate" title="${habit.description}">${habit.description}</p>
                     <p class="text-xs text-gray-500">
                         <span class="${playerClass} font-bold">${playerLabel}</span> | 
+                        <span class="text-white">${repeatLabel}</span> |
                         <span class="text-sm font-semibold text-white">${habit.points} Points</span>
                     </p>
                 </div>
@@ -269,7 +252,7 @@ function renderHabits(nightingaleProfile, keeperProfile) {
                     <button onclick="window.completeHabit('${index}')" class="btn-primary text-sm bg-green-700 hover:bg-green-600 p-2 leading-none" title="Complete Habit">
                         <i class="fas fa-check"></i>
                     </button>
-                    <button onclick="window.deleteHabit('${index}')" class="text-gray-500 hover:text-error text-xl" title="Delete Habit">
+                    <button onclick="window.prepareDelete('habits', '${index}')" class="text-gray-500 hover:text-error text-xl" title="Delete Habit">
                         &times;
                     </button>
                 </div>
@@ -278,9 +261,6 @@ function renderHabits(nightingaleProfile, keeperProfile) {
     }).join('');
 }
 
-/**
- * Renders the Reward list.
- */
 function renderRewards() {
     const listEl = document.getElementById('rewards-list');
     const rewards = gameState.rewards || [];
@@ -301,7 +281,7 @@ function renderRewards() {
                 <button onclick="window.claimReward('${index}', ${reward.cost})" class="btn-primary text-sm bg-yellow-600 hover:bg-yellow-500 p-2 leading-none" title="Claim Reward">
                     <i class="fas fa-hand-holding-usd"></i>
                 </button>
-                <button onclick="window.deleteReward('${index}')" class="text-gray-500 hover:text-error text-xl" title="Delete Reward">
+                <button onclick="window.prepareDelete('rewards', '${index}')" class="text-gray-500 hover:text-error text-xl" title="Delete Reward">
                     &times;
                 </button>
             </div>
@@ -309,9 +289,6 @@ function renderRewards() {
     `).join('');
 }
 
-/**
- * Renders the Punishment list.
- */
 function renderPunishments() {
     const listEl = document.getElementById('punishments-list');
     const punishments = gameState.punishments || [];
@@ -328,7 +305,7 @@ function renderPunishments() {
                 <p class="text-xs text-gray-500 truncate" title="${punishment.description}">${punishment.description}</p>
             </div>
             <div class="flex space-x-2 items-center">
-                <button onclick="window.deletePunishment('${index}')" class="text-gray-500 hover:text-error text-xl" title="Remove Punishment">
+                <button onclick="window.prepareDelete('punishments', '${index}')" class="text-gray-500 hover:text-error text-xl" title="Remove Punishment">
                     &times;
                 </button>
             </div>
@@ -336,28 +313,94 @@ function renderPunishments() {
     `).join('');
 }
 
-// --- Customization & Options Functions (New and Updated) ---
+// --- Toast and Undo Logic (New) ---
 
 /**
- * Toggles the visibility of the Edit Profile Modal.
+ * Displays a toast notification with an optional undo button.
  */
+function showToast(message, action) {
+    const container = document.getElementById('toast-container');
+    container.innerHTML = ''; // Clear existing toast
+
+    const toastEl = document.createElement('div');
+    toastEl.className = 'flex items-center justify-between bg-gray-800 text-white p-3 rounded-lg shadow-xl border border-gray-700 animate-fadeIn';
+    toastEl.style.animation = 'fadeIn 0.3s ease-in-out';
+    toastEl.innerHTML = `
+        <span class="text-sm">${message}</span>
+        ${action ? `<button onclick="window.undoLastAction()" class="ml-4 px-3 py-1 bg-[#b05c6c] hover:bg-[#c06c7c] rounded-md text-sm font-semibold transition-colors">Undo</button>` : ''}
+    `;
+    
+    // Define simple fade-in keyframes (Tailwind doesn't have a default for this precise use)
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }`;
+    document.head.appendChild(styleEl);
+
+    container.appendChild(toastEl);
+
+    // Clear previous timeout and set a new one
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        toastEl.remove();
+        lastDeletedItem = null;
+        lastDeletedCollection = null;
+        lastDeletedIndex = null;
+    }, 5000); // Toast disappears after 5 seconds
+}
+
+/**
+ * Reverses the last deletion operation.
+ */
+window.undoLastAction = async function() {
+    if (!lastDeletedItem || !lastDeletedCollection) {
+        showToast("Nothing to undo.", false);
+        return;
+    }
+
+    const collection = [...gameState[lastDeletedCollection]];
+    // Insert the deleted item back into its original index
+    collection.splice(lastDeletedIndex, 0, lastDeletedItem);
+
+    const updates = { [lastDeletedCollection]: collection };
+    await updateGameState(updates);
+
+    // Clear the undo state and the toast
+    document.getElementById('toast-container').innerHTML = '';
+    clearTimeout(toastTimeout);
+    
+    showToast(`${lastDeletedItem.title || lastDeletedItem.description} restored.`, false);
+
+    lastDeletedItem = null;
+    lastDeletedCollection = null;
+    lastDeletedIndex = null;
+}
+
+// --- Profile & Customization Functions ---
+
 window.toggleEditProfileModal = function(show) {
     document.getElementById('edit-profile-modal').classList.toggle('hidden', !show);
 }
 
 /**
- * Pre-populates the Edit Profile Modal with the current user's data and opens it.
+ * Pre-populates the Edit Profile Modal with the target user's data and opens it.
  */
 window.openEditProfile = function(slot) {
-    if (userSlot !== slot) {
-        document.getElementById('auth-error-message').textContent = `ERROR: You can only edit your own profile (${userSlot.charAt(0).toUpperCase() + userSlot.slice(1)}).`;
+    // Determine the userId associated with the clicked slot
+    const targetUserId = gameState.authorizedUsers.find(uid => gameState.profiles[uid]?.slot === slot);
+    
+    // Only allow editing if the current user ID matches the target slot's ID
+    if (userId !== targetUserId) {
+        // This check is mainly for visual feedback, the form only submits for the current user's slot
+        document.getElementById('auth-error-message').textContent = `ERROR: You can only edit your own profile, not the ${slot.charAt(0).toUpperCase() + slot.slice(1)} profile.`;
         setTimeout(() => document.getElementById('auth-error-message').textContent = '', 3000);
         return;
     }
 
     const currentProfile = gameState.profiles[userId] || defaultProfile;
 
-    document.getElementById('edit-profile-slot').value = slot;
+    // Use hidden fields to store which user ID/slot is being edited
+    document.getElementById('edit-profile-slot').value = slot; 
+    document.getElementById('edit-profile-user-id').value = userId; 
+
     document.getElementById('edit-profile-name').value = currentProfile.name;
     document.getElementById('edit-avatar-url').value = currentProfile.avatarUrl;
     document.getElementById('edit-status').value = currentProfile.status;
@@ -370,6 +413,14 @@ window.openEditProfile = function(slot) {
  */
 window.saveProfileChanges = async function(event) {
     event.preventDefault();
+
+    const targetUserId = document.getElementById('edit-profile-user-id').value;
+
+    if (userId !== targetUserId) {
+        document.getElementById('auth-error-message').textContent = `Authentication mismatch: Cannot save profile for another user.`;
+        setTimeout(() => document.getElementById('auth-error-message').textContent = '', 3000);
+        return;
+    }
 
     const newName = document.getElementById('edit-profile-name').value.trim();
     const newAvatarUrl = document.getElementById('edit-avatar-url').value.trim();
@@ -388,7 +439,6 @@ window.saveProfileChanges = async function(event) {
         status: newStatus
     };
     
-    // Create the update object for Firestore
     const updates = { 
         profiles: {
             ...gameState.profiles,
@@ -397,12 +447,11 @@ window.saveProfileChanges = async function(event) {
     };
 
     await updateGameState(updates);
-    document.getElementById('auth-error-message').textContent = `Profile for ${newName} saved successfully!`;
-    setTimeout(() => document.getElementById('auth-error-message').textContent = '', 3000);
+    showToast(`Profile for ${newName} saved successfully!`, false);
     window.toggleEditProfileModal(false);
 }
 
-// --- Utility Functions ---
+// --- Utility & Administrative Functions (Unchanged) ---
 
 window.toggleSettingsPanel = function(show) {
     const panel = document.getElementById('settings-panel');
@@ -413,7 +462,6 @@ window.toggleSettingsPanel = function(show) {
 }
 
 window.resetLedger = async function() {
-    // Replaced confirm() with an internal message since confirm() is blocked
     document.getElementById('auth-error-message').textContent = "ARE YOU SURE? Click 'Reset All Ledger Data' again within 5 seconds to confirm permanent reset.";
     setTimeout(() => {
         if (document.getElementById('auth-error-message').textContent.includes("confirm permanent reset")) {
@@ -423,16 +471,13 @@ window.resetLedger = async function() {
     
     const confirmationButton = document.querySelector('#settings-panel button.bg-red-500');
     
-    // Use a temporary listener to handle the double-click confirmation
     const confirmReset = async () => {
-        // If the confirmation message is currently displayed, proceed with reset
         if (document.getElementById('auth-error-message').textContent.includes("confirm permanent reset")) {
             confirmationButton.removeEventListener('click', confirmReset);
 
-            // Reset the document entirely, keeping only the current two authorized users
             const resetState = { 
                 ...defaultGameState, 
-                authorizedUsers: gameState.authorizedUsers, // Keep existing authorized users
+                authorizedUsers: gameState.authorizedUsers, 
                 profiles: gameState.authorizedUsers.reduce((acc, uid) => {
                     const slot = gameState.profiles[uid]?.slot || (uid === gameState.authorizedUsers[0] ? 'nightingale' : 'keeper');
                     acc[uid] = { ...defaultProfile, name: slot.charAt(0).toUpperCase() + slot.slice(1), slot: slot };
@@ -443,17 +488,15 @@ window.resetLedger = async function() {
             const docRef = doc(db, GAME_STATE_DOC_PATH);
             try {
                 await setDoc(docRef, resetState);
-                document.getElementById('auth-error-message').textContent = "Ledger successfully reset!";
+                showToast("Ledger successfully reset!", false);
             } catch (error) {
                 console.error("Error resetting ledger:", error);
                 document.getElementById('auth-error-message').textContent = `Error resetting ledger: ${error.message}`;
             }
-            setTimeout(() => document.getElementById('auth-error-message').textContent = '', 4000);
             window.toggleSettingsPanel(false);
         }
     };
     
-    // Attach the temporary listener
     confirmationButton.addEventListener('click', confirmReset, { once: true });
 }
 
@@ -474,8 +517,7 @@ window.signOutUser = async function() {
     }
 }
 
-
-// --- Action Functions ---
+// --- Action Functions (Unchanged score logic) ---
 
 window.toggleHabitForm = function(show) { document.getElementById('habit-form').classList.toggle('hidden', !show); }
 window.toggleRewardForm = function(show) { document.getElementById('reward-form').classList.toggle('hidden', !show); }
@@ -494,19 +536,25 @@ window.completeHabit = async function(index) {
     } else if (completedHabit.type === 'keeper') {
         updates.keeperScore = (gameState.keeperScore || 0) + completedHabit.points;
     }
+    
+    // If the habit is not 'one-time', re-add it to the end of the list after completion
+    if (completedHabit.repeat !== 'one-time') {
+         updates.habits = [...updates.habits, completedHabit];
+    }
+
 
     await updateGameState(updates);
+    showToast(`${completedHabit.description} completed! +${completedHabit.points} points.`, false);
 }
 
 window.claimReward = async function(index, cost) {
     const totalScore = (gameState.nightingaleScore || 0) + (gameState.keeperScore || 0);
     if (totalScore < cost) {
-        document.getElementById('auth-error-message').textContent = `ERROR: You only have ${totalScore} total points. This reward costs ${cost}.`;
+        document.getElementById('auth-error-message').textContent = `ERROR: Not enough total points. Need ${cost}.`;
         setTimeout(() => document.getElementById('auth-error-message').textContent = '', 4000);
         return;
     }
     
-    // Determine which partner's score to deduct first (prioritize Nightingale)
     let nightingaleDeduction = Math.min(cost, gameState.nightingaleScore);
     let keeperDeduction = cost - nightingaleDeduction;
 
@@ -515,13 +563,14 @@ window.claimReward = async function(index, cost) {
         keeperScore: gameState.keeperScore - keeperDeduction
     };
     
-    // Remove the reward from the list
-    const rewards = [...gameState.rewards];
-    rewards.splice(index, 1);
-    updates.rewards = rewards;
+    // Prepare for deletion
+    window.prepareDelete('rewards', index);
 
     await updateGameState(updates);
+    showToast(`Reward claimed! -${cost} points.`, false);
 }
+
+// --- Creation Functions (Updated for Habit Repeat) ---
 
 window.saveNewHabit = async function(event) {
     event.preventDefault();
@@ -529,6 +578,7 @@ window.saveNewHabit = async function(event) {
         description: document.getElementById('new-habit-desc').value.trim(),
         points: parseInt(document.getElementById('new-habit-points').value, 10),
         type: document.getElementById('new-habit-type').value,
+        repeat: document.getElementById('new-habit-repeat').value, // NEW REPEAT FIELD
         id: crypto.randomUUID(),
     };
 
@@ -573,84 +623,35 @@ window.saveNewPunishment = async function(event) {
     }
 }
 
-// --- Deletion Functions ---
+// --- Deletion Functions (Updated for Toast/Undo) ---
 
-window.deleteHabit = async function(index) {
-    document.getElementById('auth-error-message').textContent = "Confirm deletion: Click the 'Delete Habit' icon again within 3 seconds to confirm.";
-    setTimeout(() => {
-        if (document.getElementById('auth-error-message').textContent.includes("Confirm deletion")) {
-            document.getElementById('auth-error-message').textContent = "";
-        }
-    }, 3000);
+/**
+ * Prepares the undo data and executes the deletion.
+ * @param {string} collectionName - 'habits', 'rewards', or 'punishments'
+ * @param {string} index - Index of the item to delete
+ */
+window.prepareDelete = async function(collectionName, index) {
+    const list = [...gameState[collectionName]];
+    const i = parseInt(index, 10);
     
-    // Find the button and attach a temporary listener for confirmation
-    const deleteButtons = document.querySelectorAll('button[title="Delete Habit"]');
-    if (deleteButtons.length > index) {
-        const confirmDelete = async () => {
-            if (document.getElementById('auth-error-message').textContent.includes("Confirm deletion")) {
-                const habits = [...gameState.habits];
-                habits.splice(index, 1);
-                await updateGameState({ habits });
-                document.getElementById('auth-error-message').textContent = "Habit deleted.";
-                setTimeout(() => document.getElementById('auth-error-message').textContent = '', 2000);
-            }
-        };
-        // Re-attaching the listener on the correct button
-        deleteButtons[index].removeEventListener('click', confirmDelete); // Remove old listener if it exists
-        deleteButtons[index].addEventListener('click', confirmDelete, { once: true });
-    }
-}
+    if (i >= list.length || i < 0) return;
 
-window.deleteReward = async function(index) {
-    document.getElementById('auth-error-message').textContent = "Confirm deletion: Click the 'Delete Reward' icon again within 3 seconds to confirm.";
-    setTimeout(() => {
-        if (document.getElementById('auth-error-message').textContent.includes("Confirm deletion")) {
-            document.getElementById('auth-error-message').textContent = "";
-        }
-    }, 3000);
-    
-    const deleteButtons = document.querySelectorAll('button[title="Delete Reward"]');
-    if (deleteButtons.length > index) {
-        const confirmDelete = async () => {
-            if (document.getElementById('auth-error-message').textContent.includes("Confirm deletion")) {
-                const rewards = [...gameState.rewards];
-                rewards.splice(index, 1);
-                await updateGameState({ rewards });
-                document.getElementById('auth-error-message').textContent = "Reward deleted.";
-                setTimeout(() => document.getElementById('auth-error-message').textContent = '', 2000);
-            }
-        };
-        deleteButtons[index].removeEventListener('click', confirmDelete);
-        deleteButtons[index].addEventListener('click', confirmDelete, { once: true });
-    }
-}
+    // 1. Save the item and context for potential undo
+    lastDeletedItem = list.splice(i, 1)[0];
+    lastDeletedCollection = collectionName;
+    lastDeletedIndex = i;
 
-window.deletePunishment = async function(index) {
-    document.getElementById('auth-error-message').textContent = "Confirm deletion: Click the 'Remove Punishment' icon again within 3 seconds to confirm.";
-    setTimeout(() => {
-        if (document.getElementById('auth-error-message').textContent.includes("Confirm deletion")) {
-            document.getElementById('auth-error-message').textContent = "";
-        }
-    }, 3000);
-    
-    const deleteButtons = document.querySelectorAll('button[title="Remove Punishment"]');
-    if (deleteButtons.length > index) {
-        const confirmDelete = async () => {
-            if (document.getElementById('auth-error-message').textContent.includes("Confirm deletion")) {
-                const punishments = [...gameState.punishments];
-                punishments.splice(index, 1);
-                await updateGameState({ punishments });
-                document.getElementById('auth-error-message').textContent = "Punishment removed.";
-                setTimeout(() => document.getElementById('auth-error-message').textContent = '', 2000);
-            }
-        };
-        deleteButtons[index].removeEventListener('click', confirmDelete);
-        deleteButtons[index].addEventListener('click', confirmDelete, { once: true });
-    }
+    // 2. Perform the deletion update in Firestore
+    const updates = { [collectionName]: list };
+    await updateGameState(updates);
+
+    // 3. Show Toast Notification
+    const name = lastDeletedItem.title || lastDeletedItem.description;
+    showToast(`"${name}" deleted.`, true);
 }
 
 
-// --- Example Fillers (Fixed to use custom error message instead of window.alert) ---
+// --- Example Filler Functions (Unchanged, just moved) ---
 
 window.fillHabitForm = function() {
     if (!window.EXAMPLE_DATABASE) { 
@@ -663,6 +664,7 @@ window.fillHabitForm = function() {
     document.getElementById('new-habit-desc').value = example.description;
     document.getElementById('new-habit-points').value = example.points;
     document.getElementById('new-habit-type').value = example.type;
+    document.getElementById('new-habit-repeat').value = 'daily'; // Default to daily for examples
     if (document.getElementById('habit-form').classList.contains('hidden')) { window.toggleHabitForm(true); }
 }
 
