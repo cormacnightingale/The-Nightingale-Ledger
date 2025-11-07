@@ -1,6 +1,11 @@
-const firebaseConfig = {
-
-  apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc", 
+/**
+ * Firebase Configuration for The Nightingale Ledger.
+ * * CRITICAL FIX: The configuration is now declared using 'var' to ensure it 
+ * is globally scoped and accessible by the 'script.js' module, resolving 
+ * the 'undefined' error in standard web deployments.
+ */
+var firebaseConfig = {
+  apiKey: "AIzaSyAdmOIlbRx6uvgZiNat-BYI5GH-lvkiEqc",
   authDomain: "nightingaleledger-4627.firebaseapp.com",
   projectId: "nightingaleledger-4627",
   storageBucket: "nightingaleledger-4627.firebasestorage.app",

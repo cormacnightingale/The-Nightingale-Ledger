@@ -4,332 +4,412 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Nightingale Ledger: Shared Ledger System</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Fonts for the intimate, themed style -->
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Base Intimate Styling */
+        :root {
+            --color-bg-start: #000000;
+            --color-bg-end: #1a1a1c;
+            --color-card-bg: #1a1a1c;
+            --color-text-base: #e0e0e0;
+            --color-text-muted: #9ca3af;
+            --color-accent-primary: #b05c6c;
+            --color-accent-secondary: #7f00ff;
+            --color-accent-secondary-hover: #4d0099;
+            --color-score: #ff9900;
+            --color-border-light: #555555;
+            --color-border-dark: #3c3c45;
+            --color-input-bg: #0d0d0f;
+            --color-shadow-primary: rgba(176, 92, 108, 0.2);
+            --color-shadow-secondary: rgba(127, 0, 255, 0.1);
+        }
         body {
-            font-family: 'Playfair Display', serif;
-            background: linear-gradient(to bottom right, #0a0a0c 0%, #1a1a1d 100%); /* Deep charcoal to near black gradient */
+            font-family: 'Cormorant Garamond', serif;
+            background-image: linear-gradient(to bottom, var(--color-bg-start), var(--color-bg-end));
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            color: var(--color-text-base);
             min-height: 100vh;
-            color: #d4d4dc; /* Light grey for text */
             margin: 0;
             padding: 0;
             overflow-x: hidden;
+            transition: color 0.3s ease, background-image 0.3s ease;
         }
-        h1, h2, h3 {
+        h1, h2, h3, h4 {
             font-family: 'Cinzel', serif;
-            color: #b05c6c; /* Deep romantic red/plum */
+            color: var(--color-accent-primary);
+            transition: color 0.3s ease;
         }
         .card {
-            background-color: #242429; /* Darker card background */
-            border: 1px solid #3c3c45; /* Subtle border */
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
+            background-color: var(--color-card-bg);
+            border: 2px solid var(--color-border-light);
+            border-radius: 8px;
+            box-shadow: 0 0 15px var(--color-shadow-primary), 0 0 25px var(--color-shadow-secondary);
+            transition: all 0.3s ease-in-out;
         }
-        .btn-primary {
-            background-color: #b05c6c;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            transition: background-color 0.2s;
+        .card:hover {
+            box-shadow: 0 0 20px var(--color-shadow-primary), 0 0 40px var(--color-shadow-secondary);
+            transform: translateY(-2px);
         }
-        .btn-primary:hover {
-            background-color: #9a4a58;
+        .glowing-btn {
+            background: var(--color-accent-secondary);
+            color: var(--color-text-base);
+            border: 1px solid var(--color-accent-secondary);
+            box-shadow: 0 0 5px var(--color-accent-secondary), 0 0 10px var(--color-accent-secondary);
+            transition: all 0.3s ease-in-out;
+            text-shadow: 0 0 4px rgba(0,0,0,0.7);
         }
-        .btn-secondary {
-            background-color: #3c3c45;
-            color: #d4d4dc;
-            padding: 0.75rem 1.5rem;
-            transition: background-color 0.2s;
+        .glowing-btn:hover {
+            background: var(--color-accent-secondary-hover);
+            box-shadow: 0 0 10px var(--color-accent-secondary), 0 0 20px var(--color-accent-secondary);
+            transform: scale(1.02);
         }
-        .btn-secondary:hover {
-            background-color: #50505a;
-        }
-        .tab-button.active {
-            border-bottom: 3px solid #b05c6c;
-            color: #b05c6c;
-            font-weight: 700;
-        }
-        .tab-button {
-            transition: all 0.2s;
-        }
-        /* Style for the Ledger Table */
-        .ledger-table th {
-            background-color: #1a1a1d;
-            color: #b05c6c;
-            text-align: left;
-            padding: 1rem 0.75rem;
-            border-bottom: 2px solid #3c3c45;
+        .glowing-btn:active { transform: scale(0.98); }
+        .glowing-btn-google { background: #4285F4; border-color: #4285F4; box-shadow: 0 0 5px #4285F4; }
+        .glowing-btn-google:hover { background: #357ae8; }
+        .glowing-btn-create { background: #059669; border-color: #059669; box-shadow: 0 0 5px #059669; }
+        .glowing-btn-create:hover { background: #047857; }
+        
+        .player-score {
             font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            color: var(--color-score);
+            text-shadow: 0 0 5px var(--color-score);
+            transition: color 0.3s ease, text-shadow 0.3s ease;
         }
-        .ledger-table td {
-            padding: 0.75rem;
-            border-bottom: 1px solid #3c3c45;
-            vertical-align: middle;
+        @keyframes neon-glow {
+            0%, 100% { text-shadow: 0 0 5px #b05c6c, 0 0 10px #7f00ff, 0 0 15px #b05c6c; }
+            50% { text-shadow: 0 0 10px #ff004c, 0 0 20px #ff004c, 0 0 30px #7f00ff; }
         }
-        /* Utility for the delicate text */
-        .delicate-text {
-            color: #9a9a9f;
-            font-style: italic;
+        .neon-title { animation: none; }
+        html[data-theme="Nightingale"] .neon-title {
+             animation: neon-glow 5s ease-in-out infinite alternate;
         }
-        /* Custom scrollbar for an intimate feel */
-        ::-webkit-scrollbar {
-            width: 8px;
+        .edit-btn {
+            color: var(--color-text-muted); opacity: 0.7; transition: all 0.2s;
+            cursor: pointer; background: none; border: none;
+            padding: 0; margin-left: 0.5rem; line-height: 1;
         }
-        ::-webkit-scrollbar-track {
-            background: #1a1a1d;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4a4a50;
+        .edit-btn:hover { opacity: 1; color: var(--color-text-base); transform: scale(1.1); }
+        .tab-btn { border-bottom-width: 2px; transition: color 0.2s, border-color 0.2s; }
+        .tab-active { border-color: var(--color-accent-primary); color: var(--color-text-base); }
+        .tab-inactive { border-color: transparent; color: var(--color-text-muted); }
+        .tab-inactive:hover { color: var(--color-text-base); }
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], textarea, select {
+            background-color: var(--color-input-bg);
+            border: 1px solid var(--color-border-light);
+            color: var(--color-text-base);
             border-radius: 4px;
+            padding: 8px;
+            transition: border-color 0.2s, background-color 0.3s, color 0.3s;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #b05c6c;
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--color-accent-secondary);
+            outline: none;
+            box-shadow: 0 0 5px var(--color-accent-secondary);
         }
+        input[type="color"] {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            width: 100%; height: 2.5rem; padding: 0;
+            border: 1px solid var(--color-border-light);
+            border-radius: 4px; background: transparent; cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 4px; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
     </style>
-
 </head>
 <body class="p-4 sm:p-8">
 
-    <!-- Modal for Alerts (No alert() allowed) -->
-    <div id="app-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-        <div class="bg-[#242429] card p-6 w-full max-w-sm rounded-xl shadow-2xl">
-            <h3 id="modal-title" class="text-xl font-cinzel mb-4 text-center"></h3>
-            <p id="modal-message" class="text-white mb-6 text-center"></p>
-            <button onclick="window.closeModal()" class="btn-primary w-full rounded-lg font-sans font-semibold">Understood</button>
+    <!-- Modal for Alerts and Prompts -->
+    <div id="custom-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
+        <div class="card p-6 w-11/12 max-w-lg space-y-4" id="modal-content-container">
+            <h3 id="modal-title" class="text-xl font-bold border-b pb-2 border-gray-700">Notice</h3>
+            <p id="modal-message" class="text-gray-300"></p>
+            <input type="text" id="modal-input" class="w-full hidden" placeholder="Enter value...">
+            <div class="flex justify-end space-x-4">
+                <button id="modal-cancel-btn" class="glowing-btn px-4 py-2 text-sm rounded hidden">Cancel</button>
+                <button id="modal-confirm-btn" class="glowing-btn px-4 py-2 text-sm rounded">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
+        <div class="card p-6 w-11/12 max-w-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold border-b pb-2 border-gray-700">Theme &amp; Customization</h3>
+            <div class="space-y-2">
+                <label for="theme-preset-select" class="block text-sm font-medium">Theme Preset</label>
+                <select id="theme-preset-select" class="w-full" onchange="window.handlePresetChange()">
+                    <option value="Nightingale">Nightingale (Dark)</option>
+                    <option value="Daybreak">Daybreak (Light)</option>
+                    <option value="Grove">Grove (Green)</option>
+                    <option value="Custom">Custom</option>
+                </select>
+                <p class="text-xs text-gray-400">Select a preset to load colors, or customize them below (sets to 'Custom').</p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                <div class="space-y-2">
+                    <label for="color-bg-start" class="block text-sm font-medium">Background Start</label>
+                    <input type="color" id="color-bg-start" class="w-full" oninput="window.setPresetToCustom()">
+                </div>
+                <div class="space-y-2">
+                    <label for="color-bg-end" class="block text-sm font-medium">Background End</label>
+                    <input type="color" id="color-bg-end" class="w-full" oninput="window.setPresetToCustom()">
+                </div>
+                <div class="space-y-2">
+                    <label for="color-card-bg" class="block text-sm font-medium">Card Background</label>
+                    <input type="color" id="color-card-bg" class="w-full" oninput="window.setPresetToCustom()">
+                </div>
+                <div class="space-y-2">
+                    <label for="color-text-base" class="block text-sm font-medium">Base Text</label>
+                    <input type="color" id="color-text-base" class="w-full" oninput="window.setPresetToCustom()">
+                </div>
+                <div class="space-y-2">
+                    <label for="color-accent-primary" class="block text-sm font-medium">Primary Accent (Headers)</label>
+                    <input type="color" id="color-accent-primary" class="w-full" oninput="window.setPresetToCustom()">
+                </div>
+                <div class="space-y-2">
+                    <label for="color-accent-secondary" class="block text-sm font-medium">Secondary Accent (Buttons)</label>
+                    <input type="color" id="color-accent-secondary" class="w-full" oninput="window.setPresetToCustom()">
+                </div>
+                <div class="space-y-2">
+                    <label for="color-score" class="block text-sm font-medium">Score Text</label>
+                    <input type="color" id="color-score" class="w-full" oninput="window.setPresetToCustom()">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-4 pt-4">
+                <button onclick="window.closeSettingsModal()" class="glowing-btn px-4 py-2 text-sm rounded">Cancel</button>
+                <button onclick="window.saveSettings()" class="glowing-btn px-4 py-2 text-sm rounded">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="profile-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
+        <div class="card p-6 w-11/12 max-w-lg space-y-4">
+            <h3 id="profile-modal-title" class="text-xl font-bold border-b pb-2 border-gray-700">Edit Profile</h3>
+            <input type="hidden" id="profile-modal-player-key" value="">
+            <div class="space-y-2">
+                <label for="profile-modal-name" class="block text-sm font-medium">Name</label>
+                <input type="text" id="profile-modal-name" class="w-full">
+            </div>
+            <div class="space-y-2">
+                <label for="profile-modal-title" class="block text-sm font-medium">Title (e.g., Keeper, Muse)</label>
+                <input type="text" id="profile-modal-title" class="w-full">
+            </div>
+            <div class="space-y-2">
+                <label for="profile-modal-color" class="block text-sm font-medium">Theme Color</label>
+                <input type="color" id="profile-modal-color" class="w-full">
+            </div>
+            <div class="flex justify-end space-x-4">
+                <button onclick="window.closeProfileModal()" class="glowing-btn px-4 py-2 text-sm rounded">Cancel</button>
+                <button onclick="window.savePlayerProfile()" class="glowing-btn px-4 py-2 text-sm rounded">Save</button>
+            </div>
         </div>
     </div>
     
-    <!-- Main Content -->
-    <div class="max-w-6xl mx-auto">
-        <header class="text-center mb-10">
-            <h1 class="text-5xl font-extrabold mb-2 text-[#e0e0e6]">The Nightingale Ledger</h1>
-            <p class="text-xl text-gray-400 font-playfair italic">A Shared System of Accountability & Reward</p>
+    <!-- Initial Loading Screen (Default) -->
+    <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-4xl sm:text-6xl font-cinzel text-[#b05c6c] mb-6 neon-title">The Nightingale Ledger</h1>
+        <div class="text-lg text-gray-400 max-w-xl mx-auto space-y-4">
+            <p>Connecting...</p>
+            <!-- This message is updated by auth state -->
+            <p id="auth-error-message" class="text-gray-400"></p>
+        </div>
+    </div>
+
+    <!-- Auth Screen (Hidden by default) -->
+    <div id="auth-screen" class="min-h-screen hidden items-center justify-center p-6">
+        <div class="card p-8 w-full max-w-md space-y-6">
+            <h2 class="text-3xl text-center">Welcome</h2>
+            <p id="auth-form-error" class="text-center text-red-400 hidden"></p>
+            
+            <!-- Email/Pass Form -->
+            <div class="space-y-4">
+                <input type="email" id="auth-email" placeholder="Email" class="w-full">
+                <input type="password" id="auth-password" placeholder="Password (6+ characters)" class="w-full">
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button onclick="window.signInWithEmail()" class="glowing-btn px-4 py-2 rounded w-full">Sign In</button>
+                <button onclick="window.createAccountWithEmail()" class="glowing-btn glowing-btn-create px-4 py-2 rounded w-full">Create Account</button>
+            </div>
+
+            <!-- Separator -->
+            <div class="flex items-center">
+                <div class="flex-grow border-t border-gray-600"></div>
+                <span class="mx-4 text-gray-400">or</span>
+                <div class="flex-grow border-t border-gray-600"></div>
+            </div>
+
+            <!-- Google Sign-In -->
+            <button onclick="window.signInWithGoogle()" class="glowing-btn glowing-btn-google px-4 py-2 rounded w-full flex items-center justify-center">
+                <i class="fab fa-google mr-2"></i> Sign in with Google
+            </button>
+        </div>
+    </div>
+
+    <!-- Ledger Selection Screen (Hidden by default) -->
+    <div id="ledger-select-screen" class="min-h-screen hidden items-center justify-center p-6">
+        <div class="card p-8 w-full max-w-xl space-y-6">
+            <h2 class="text-3xl text-center">Select Your Ledger</h2>
+            <p class="text-center text-gray-400">Welcome! You're not connected to a ledger. Host a new one or join your partner's.</p>
+            
+            <p id="ledger-form-error" class="text-center text-red-400 hidden"></p>
+
+            <!-- Host/Join Form -->
+            <div class="space-y-4">
+                <label for="ledger-code-input" class="block text-sm font-medium">Ledger Code</label>
+                <input type="text" id="ledger-code-input" placeholder="e.g., 'OurVow' or 'PartnerCode'" class="w-full">
+                <p class="text-xs text-gray-400">This code is case-sensitive. Create a new one or enter your partner's code.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button onclick="window.hostLedger()" class="glowing-btn glowing-btn-create px-4 py-2 rounded w-full">Host New Ledger</button>
+                <button onclick="window.joinLedger()" class="glowing-btn px-4 py-2 rounded w-full">Join Ledger</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area (Hidden by default) -->
+    <div id="main-content" class="container mx-auto max-w-5xl hidden">
+        
+        <!-- Header -->
+        <header class="text-center py-6 mb-8 relative">
+            <h1 class="text-4xl sm:text-6xl font-bold neon-title mb-4">The Nightingale Ledger</h1>
+            <p class="text-lg italic text-gray-400">A Shared Vow of Discipline and Delight</p>
+            <button onclick="window.openSettingsModal()" class="absolute top-4 right-0 sm:right-4 glowing-btn p-3 rounded-full text-xl leading-none">
+                <i class="fas fa-cog"></i>
+            </button>
         </header>
 
-        <!-- Scoreboard & Player Names -->
-        <section class="card p-6 mb-8 rounded-xl grid grid-cols-2 gap-4 text-center">
-            
-            <!-- Keeper's Score -->
-            <div class="border-r border-[#3c3c45] pr-4">
-                <h3 class="text-2xl mb-1 text-[#b05c6c]">The Keeper (Discipline)</h3>
-                <p id="keeper-name" class="text-lg text-gray-400 font-sans mb-3">User 1</p>
-                <div class="text-4xl font-cinzel font-bold text-white" id="keeper-score">0</div>
+        <!-- Player Scores Section -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <!-- Keeper Card -->
+            <div id="keeper-card" class="card p-6 text-center">
+                <div class="flex items-center justify-center space-x-2 mb-2">
+                    <h2 id="keeper-title" class="text-3xl">The Keeper</h2>
+                </div>
+                <div class="flex items-center justify-center space-x-2 mb-2">
+                    <p id="player-name-keeper" class="text-xl font-semibold inline-block">User 1</p>
+                    <button onclick="window.openEditProfileModal('keeper')" class="edit-btn"><i class="fas fa-edit"></i></button>
+                </div>
+                <p id="score-keeper" class="player-score">0</p>
             </div>
-
-            <!-- Nightingale's Score -->
-            <div class="pl-4">
-                <h3 class="text-2xl mb-1 text-[#b05c6c]">The Nightingale (Reward)</h3>
-                <p id="nightingale-name" class="text-lg text-gray-400 font-sans mb-3">User 2</p>
-                <div class="text-4xl font-cinzel font-bold text-white" id="nightingale-score">0</div>
+            <!-- Nightingale Card -->
+            <div id="nightingale-card" class="card p-6 text-center">
+                <div class="flex items-center justify-center space-x-2 mb-2">
+                    <h2 id="nightingale-title" class="text-3xl">The Nightingale</h2>
+                </div>
+                <div class="flex items-center justify-center space-x-2 mb-2">
+                    <p id="player-name-nightingale" class="text-xl font-semibold inline-block">User 2</p>
+                    <button onclick="window.openEditProfileModal('nightingale')" class="edit-btn"><i class="fas fa-edit"></i></button>
+                </div>
+                <p id="score-nightingale" class="player-score">0</p>
             </div>
-
         </section>
         
-        <!-- Main Tabs -->
-        <div class="bg-[#1a1a1d] rounded-xl shadow-lg">
-            <!-- Tab Headers -->
-            <nav class="flex border-b border-[#3c3c45]">
-                <button id="tab-ledger-btn" onclick="window.showTab('ledger')" class="tab-button flex-1 p-4 text-center text-lg font-cinzel active">The Ledger</button>
-                <button id="tab-definitions-btn" onclick="window.showTab('definitions')" class="tab-button flex-1 p-4 text-center text-lg font-cinzel">Definitions</button>
-                <button id="tab-rewards-btn" onclick="window.showTab('rewards')" class="tab-button flex-1 p-4 text-center text-lg font-cinzel">Rewards & Punishments</button>
-            </nav>
-
-            <!-- Tab Content -->
-            <div id="tab-content" class="p-6">
-                <!-- 1. The Ledger Tab -->
-                <section id="tab-ledger" class="space-y-8">
-                    <h2 class="text-3xl mb-4">Current Week's Accountability</h2>
-
-                    <!-- Habit Tracker -->
-                    <div class="card p-5 rounded-xl">
-                        <h3 class="text-xl mb-4 flex justify-between items-center">
-                            Habit Tracker
-                            <button onclick="window.addHabitEntry()" class="btn-primary rounded-full text-sm py-1 px-3 font-sans font-semibold">New Entry</button>
-                        </h3>
-                        <div id="habit-entries-list">
-                            <table class="w-full ledger-table">
-                                <thead>
-                                    <tr>
-                                        <th class="w-1/4">Habit</th>
-                                        <th class="w-1/4">Assigned To</th>
-                                        <th class="w-1/4">Status</th>
-                                        <th class="w-1/4 text-right">Points</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="habit-entries-tbody">
-                                    <tr>
-                                        <td colspan="4" class="text-center py-4 text-gray-500 italic" id="entries-loading">No entries recorded yet.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Reward Redemption & Punishment Log -->
-                    <div class="grid md:grid-cols-2 gap-8">
-                        <!-- Reward Redemption Log -->
-                        <div class="card p-5 rounded-xl">
-                            <h3 class="text-xl mb-4 flex justify-between items-center">
-                                Reward Redemption Log
-                                <button onclick="window.addLogEntry('reward')" class="btn-primary rounded-full text-sm py-1 px-3 font-sans font-semibold">Redeem Reward</button>
-                            </h3>
-                            <div id="reward-log-list">
-                                <table class="w-full ledger-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Reward</th>
-                                            <th class="w-1/4 text-right">Cost</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="reward-log-tbody">
-                                        <tr>
-                                            <td colspan="2" class="text-center py-4 text-gray-500 italic">No rewards redeemed.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Punishment Log -->
-                        <div class="card p-5 rounded-xl">
-                            <h3 class="text-xl mb-4 flex justify-between items-center">
-                                Punishment Log
-                                <button onclick="window.addLogEntry('punishment')" class="btn-primary rounded-full text-sm py-1 px-3 font-sans font-semibold">Apply Punishment</button>
-                            </h3>
-                            <div id="punishment-log-list">
-                                <table class="w-full ledger-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Punishment</th>
-                                            <th class="w-1/4 text-right">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="punishment-log-tbody">
-                                        <tr>
-                                            <td colspan="2" class="text-center py-4 text-gray-500 italic">No punishments logged.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                </section>
-
-                <!-- 2. The Definitions Tab -->
-                <section id="tab-definitions" class="hidden space-y-8">
-                    <h2 class="text-3xl mb-6">Define the System Parameters</h2>
-
-                    <!-- Habit Definition Section -->
-                    <div class="card p-5 rounded-xl">
-                        <h3 class="text-2xl mb-4">Habit Definitions</h3>
-                        <button onclick="window.toggleHabitForm()" class="btn-secondary rounded-lg font-sans font-semibold mb-4 w-full">Define a New Habit</button>
-                        
-                        <!-- Habit Form (Initially Hidden) -->
-                        <div id="new-habit-form" class="hidden p-4 mb-4 bg-[#1a1a1d] rounded-lg border border-[#3c3c45] space-y-3">
-                            <input type="text" id="new-habit-desc" placeholder="Habit description (e.g., 'Do 20 min of yoga')..." class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                            <div class="flex space-x-3">
-                                <input type="number" id="new-habit-points" placeholder="Points" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="10">
-                                <input type="number" id="new-habit-times" placeholder="Times/Week" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="1">
-                                <select id="new-habit-assignee" class="w-1/3 p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                                    <option value="keeper">The Keeper</option>
-                                    <option value="nightingale">The Nightingale</option>
-                                </select>
-                            </div>
-                            <div class="flex space-x-3">
-                                <button onclick="window.generateExample('habit')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                                <button onclick="window.addHabitDefinition()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Habit</button>
-                            </div>
-                        </div>
-
-                        <!-- Habit List -->
-                        <div id="habit-definitions-list" class="space-y-3">
-                            <p class="text-center py-4 text-gray-500 italic" id="habits-loading">No habits defined yet.</p>
-                        </div>
-                    </div>
-
-                    <!-- Player Name Configuration -->
-                    <div class="card p-5 rounded-xl">
-                        <h3 class="text-2xl mb-4">Player Names</h3>
-                        <div class="space-y-3">
-                            <div>
-                                <label for="config-keeper-name" class="block text-sm font-sans mb-1 delicate-text">Keeper's Name (e.g., 'Cormac')</label>
-                                <input type="text" id="config-keeper-name" onchange="window.updatePlayerName('keeper', this.value)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" placeholder="Keeper Name">
-                            </div>
-                            <div>
-                                <label for="config-nightingale-name" class="block text-sm font-sans mb-1 delicate-text">Nightingale's Name (e.g., 'Sarah')</label>
-                                <input type="text" id="config-nightingale-name" onchange="window.updatePlayerName('nightingale', this.value)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" placeholder="Nightingale Name">
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 3. Rewards & Punishments Tab -->
-                <section id="tab-rewards" class="hidden grid md:grid-cols-2 gap-8">
-                    <!-- Rewards Section -->
-                    <div class="card p-5 rounded-xl">
-                        <h2 class="text-3xl mb-6">Reward Pool</h2>
-                        <button onclick="window.toggleRewardForm()" class="btn-secondary rounded-lg font-sans font-semibold mb-4 w-full">Define a New Reward</button>
-                        
-                        <!-- Reward Form (Initially Hidden) -->
-                        <div id="new-reward-form" class="hidden p-4 mb-4 bg-[#1a1a1d] rounded-lg border border-[#3c3c45] space-y-3">
-                            <input type="text" id="new-reward-title" placeholder="Reward Title (e.g., 'Movie Night Pass')..." class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                            <input type="number" id="new-reward-cost" placeholder="Cost (Points)" class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white" value="50">
-                            <textarea id="new-reward-desc" placeholder="Detailed description of the reward..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
-                            <div class="flex space-x-3">
-                                <button onclick="window.generateExample('reward')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                                <button onclick="window.addReward()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Reward</button>
-                            </div>
-                        </div>
-
-                        <!-- Reward List -->
-                        <div id="rewards-list" class="space-y-3">
-                            <p class="text-center py-4 text-gray-500 italic" id="rewards-loading">No rewards defined yet.</p>
-                        </div>
-                    </div>
-
-                    <!-- Punishments Section -->
-                    <div class="card p-5 rounded-xl">
-                        <h2 class="text-3xl mb-6">Punishment Ledger</h2>
-                        <button onclick="window.togglePunishmentForm()" class="btn-secondary rounded-lg font-sans font-semibold mb-4 w-full">Define a New Punishment</button>
-                        
-                        <!-- Punishment Form (Initially Hidden) -->
-                        <div id="new-punishment-form" class="hidden p-4 mb-4 bg-[#1a1a1d] rounded-lg border border-[#3c3c45] space-y-3">
-                            <input type="text" id="new-punishment-title" placeholder="Punishment Title (e.g., 'The Dish Detail')..." class="w-full p-3 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white">
-                            <textarea id="new-punishment-desc" placeholder="Detailed description of the punishment..." class="w-full p-3 mb-4 bg-[#1a1a1d] border border-[#3c3c45] rounded-lg text-white h-20"></textarea>
-                            <div class="flex space-x-3">
-                                <button onclick="window.generateExample('punishment')" class="btn-secondary rounded-lg font-sans font-semibold flex-1">Generate Example</button>
-                                <button onclick="window.addPunishment()" class="btn-primary rounded-lg font-sans font-semibold flex-1">Define Punishment</button>
-                            </div>
-                        </div>
-
-                        <!-- Punishment List -->
-                        <div id="punishments-list" class="space-y-3">
-                            <p class="text-center py-4 text-gray-500 italic" id="punishments-loading">No punishments defined yet.</p>
-                        </div>
-
-                    </section>
-                </div>
-                
-                <!-- Debug/Footer Info -->
-                <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500">
-                    <p>User ID: <span id="current-user-id">...</span> | App ID: <span id="current-app-id">...</span></p>
-                </footer>
-
+        <!-- Tabbed Interface -->
+        <div class="mb-12">
+            <div class="flex border-b border-[#555]">
+                <button onclick="window.setActiveTab('habits')" id="tab-habits" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold">Habits</button>
+                <button onclick="window.setActiveTab('rewards')" id="tab-rewards" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold">Rewards</button>
+                <button onclick="window.setActiveTab('punishments')" id="tab-punishments" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold">Punishments</button>
+                <button onclick="window.setActiveTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold">History</button>
             </div>
 
-            <!-- External JavaScript Imports -->
-            <!-- 1. The data definitions must load first -->
-            <script src="./examples.js"></script>
-            
-            <!-- 2. The main script loads last -->
-            <!-- We REMOVED the firebase_config.js file import here as it caused a lexical declaration conflict -->
-            <script type="module" src="./script.js"></script>
+            <!-- Habits Tab Content -->
+            <section id="content-habits" class="p-2 sm:p-6 space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+                    <h3 class="text-2xl">Habit Registry</h3>
+                    <button onclick="window.toggleHabitForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto"><i class="fas fa-plus mr-2"></i> Add New Habit</button>
+                </div>
+                <div id="habit-form" class="card p-4 space-y-4 hidden">
+                    <h4 class="text-xl">Define a New Habit</h4>
+                    <input type="text" id="new-habit-desc" placeholder="Habit Description..." class="w-full">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <input type="number" id="new-habit-points" placeholder="Points (e.g., 10)" min="1" class="w-full">
+                        <input type="number" id="new-habit-times" placeholder="Times Per Week (e.g., 3)" min="1" max="7" class="w-full">
+                    </div>
+                    <select id="new-habit-assignee" class="w-full">
+                        <option value="" disabled selected>Assign to which role?</option>
+                        <option value="keeper">The Keeper</option>
+                        <option value="nightingale">The Nightingale</option>
+                    </select>
+                    <div class="flex flex-col sm:flex-row justify-between space-y-2 sm:space-y-0 sm:space-x-4">
+                         <button onclick="window.fillHabitForm('keeper')" class="glowing-btn px-3 py-1 rounded text-xs bg-red-800 border-red-500"><i class="fas fa-magic"></i> Keeper Example</button>
+                        <button onclick="window.fillHabitForm('nightingale')" class="glowing-btn px-3 py-1 rounded text-xs bg-purple-800 border-purple-500"><i class="fas fa-magic"></i> Nightingale Example</button>
+                        <button onclick="window.addNewHabit()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500">Save Habit</button>
+                    </div>
+                </div>
+                <div id="habits-list" class="space-y-3">
+                    <p id="habits-loading">No habits defined yet.</p>
+                </div>
+            </section>
+
+            <!-- Rewards Tab Content -->
+            <section id="content-rewards" class="p-2 sm:p-6 space-y-6 hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+                    <h3 class="text-2xl">Reward Catalog</h3>
+                    <button onclick="window.toggleRewardForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto"><i class="fas fa-plus mr-2"></i> Add New Reward</button>
+                </div>
+                <div id="reward-form" class="card p-4 space-y-4 hidden">
+                    <h4 class="text-xl">Define a New Reward</h4>
+                    <input type="text" id="new-reward-title" placeholder="Reward Title..." class="w-full">
+                    <input type="number" id="new-reward-cost" placeholder="Point Cost (e.g., 50)" min="1" class="w-full">
+                    <textarea id="new-reward-desc" placeholder="Reward Description..." class="w-full h-24"></textarea>
+                    <div class="flex flex-col sm:flex-row justify-between space-y-2 sm:space-y-0 sm:space-x-4">
+                        <button onclick="window.fillRewardForm()" class="glowing-btn px-3 py-1 rounded text-xs bg-purple-800 border-purple-500"><i class="fas fa-magic"></i> Generate Example</button>
+                        <button onclick="window.addNewReward()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500">Save Reward</button>
+                    </div>
+                </div>
+                <div id="rewards-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <p id="rewards-loading">No rewards defined yet.</p>
+                </div>
+            </section>
+
+            <!-- Punishments Tab Content -->
+            <section id="content-punishments" class="p-2 sm:p-6 space-y-6 hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+                    <h3 class="text-2xl">Vows of Consequence</h3>
+                    <button onclick="window.togglePunishmentForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto"><i class="fas fa-plus mr-2"></i> Add New Punishment</button>
+                </div>
+                <div id="punishment-form" class="card p-4 space-y-4 hidden">
+                    <h4 class="text-xl">Define a New Punishment</h4>
+                    <input type="text" id="new-punishment-title" placeholder="Punishment Title..." class="w-full">
+                    <textarea id="new-punishment-desc" placeholder="Punishment Description..." class="w-full h-24"></textarea>
+                    <div class="flex flex-col sm:flex-row justify-between space-y-2 sm:space-y-0 sm:space-x-4">
+                        <button onclick="window.fillPunishmentForm()" class="glowing-btn px-3 py-1 rounded text-xs bg-red-800 border-red-500"><i class="fas fa-magic"></i> Generate Example</button>
+                        <button onclick="window.addNewPunishment()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500">Save Punishment</button>
+                    </div>
+                </div>
+                <div id="punishments-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <p id="punishments-loading">No punishments defined yet.</p>
+                </div>
+            </section>
+
+            <!-- History Tab Content -->
+            <section id="content-history" class="p-2 sm:p-6 space-y-6 hidden">
+                <h3 class="text-2xl text-center">Ledger History</h3>
+                <div class="card p-6 h-96 overflow-y-auto">
+                    <ul id="history-list" class="space-y-3">
+                        <li id="history-loading" class="text-gray-500">Awaiting ledger entry...</li>
+                    </ul>
+                </div>
+            </section>
         </div>
-    </body>
+        
+        <!-- Footer Info -->
+        <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500 space-y-2">
+            <p>App ID: <span id="current-app-id">...</span> | Ledger ID: <span id="current-ledger-id">...</span></p>
+            <p>User: <span id="current-user-email">...</span> (<button onclick="window.doSignOut()" class="underline hover:text-white">Sign Out</button>)</p>
+        </footer>
+
+    </div>
+
+    <!-- External JavaScript Imports -->
+    <script src="./examples.js"></script>
+    <script src="./firebase_config.js"></script>
+    <script type="module" src="./script.js"></script>
+
+</body>
 </html>
