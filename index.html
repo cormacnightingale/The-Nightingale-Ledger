@@ -1,615 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>The Nightingale Ledger: Shared Ledger System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        :root {
-            --color-bg-start: #000000;
-            --color-bg-end: #1a1a1c;
-            --color-card-bg: #1a1a1c;
-            --color-text-base: #e0e0e0;
-            --color-text-muted: #9ca3af;
-            --color-accent-primary: #b05c6c;
-            --color-accent-secondary: #7f00ff;
-            --color-accent-secondary-hover: #4d0099;
-            --color-score: #ff9900;
-            --color-border-light: #555555;
-            --color-border-dark: #3c3c45;
-            --color-input-bg: #0d0d0f;
-            --color-shadow-primary: rgba(176, 92, 108, 0.2);
-            --color-shadow-secondary: rgba(127, 0, 255, 0.1);
-        }
-        /* Basic layout and theme */
-        body {
-            font-family: 'Cormorant Garamond', serif;
-            background-image: linear-gradient(to bottom, var(--color-bg-start), var(--color-bg-end));
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-            color: var(--color-text-base);
-            min-height: 100vh;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            transition: color 0.3s ease, background-image 0.3s ease;
-        }
-        h1, h2, h3, h4 {
-            font-family: 'Cinzel', serif;
-            color: var(--color-accent-primary);
-            transition: color 0.3s ease;
-        }
-        .card {
-            background-color: var(--color-card-bg);
-            border: 2px solid var(--color-border-light);
-            border-radius: 8px;
-            box-shadow: 0 0 15px var(--color-shadow-primary), 0 0 25px var(--color-shadow-secondary);
-            transition: all 0.3s ease-in-out;
-        }
-        .card:hover {
-            box-shadow: 0 0 20px var(--color-shadow-primary), 0 0 40px var(--color-shadow-secondary);
-            transform: translateY(-2px);
-        }
-        .glowing-btn {
-            background: var(--color-accent-secondary);
-            color: var(--color-text-base);
-            border: 1px solid var(--color-accent-secondary);
-            box-shadow: 0 0 5px var(--color-accent-secondary), 0 0 10px var(--color-accent-secondary);
-            transition: all 0.3s ease-in-out;
-            text-shadow: 0 0 4px rgba(0,0,0,0.7);
-        }
-        .glowing-btn:hover {
-            background: var(--color-accent-secondary-hover);
-            box-shadow: 0 0 10px var(--color-accent-secondary), 0 0 20px var(--color-accent-secondary);
-            transform: scale(1.02);
-        }
-        .glowing-btn:active { transform: scale(0.98); }
-        .glowing-btn-google { background: #4285F4; border-color: #4285F4; box-shadow: 0 0 5px #4285F4; }
-        .glowing-btn-google:hover { background: #357ae8; }
-        .glowing-btn-create { background: #059669; border-color: #059669; box-shadow: 0 0 5px #059669; }
-        .glowing-btn-create:hover { background: #047857; }
-        
-        .player-score {
-            font-family: 'Cinzel', serif;
-            font-size: 2.5rem;
-            color: var(--color-score);
-            text-shadow: 0 0 5px var(--color-score);
-            transition: color 0.3s ease, text-shadow 0.3s ease;
-        }
-        @keyframes neon-glow {
-            0%, 100% { text-shadow: 0 0 5px #b05c6c, 0 0 10px #7f00ff, 0 0 15px #b05c6c; }
-            50% { text-shadow: 0 0 10px #ff004c, 0 0 20px #ff004c, 0 0 30px #7f00ff; }
-        }
-        .neon-title { animation: none; }
-        html[data-theme="Nightingale"] .neon-title {
-             animation: neon-glow 5s ease-in-out infinite alternate;
-        }
-        .edit-btn {
-            color: var(--color-text-muted); opacity: 0.7; transition: all 0.2s;
-            cursor: pointer; background: none; border: none;
-            padding: 0; margin-left: 0.5rem; line-height: 1;
-        }
-        .edit-btn:hover { opacity: 1; color: var(--color-text-base); transform: scale(1.1); }
-        .tab-btn { border-bottom-width: 2px; transition: color 0.2s, border-color 0.2s; }
-        .tab-active { border-color: var(--color-accent-primary); color: var(--color-text-base); }
-        .tab-inactive { border-color: transparent; color: var(--color-text-muted); }
-        .tab-inactive:hover { color: var(--color-text-base); }
-        input[type="text"], input[type="number"], input[type="email"], input[type="password"], textarea, select {
-            background-color: var(--color-input-bg);
-            border: 1px solid var(--color-border-light);
-            color: var(--color-text-base);
-            border-radius: 4px;
-            padding: 8px;
-            transition: border-color 0.2s, background-color 0.3s, color 0.3s;
-        }
-        input:focus, textarea:focus, select:focus {
-            border-color: var(--color-accent-secondary);
-            outline: none;
-            box-shadow: 0 0 5px var(--color-accent-secondary);
-        }
-        input[type="color"] {
-            -webkit-appearance: none; -moz-appearance: none; appearance: none;
-            width: 100%; height: 2.5rem; padding: 0;
-            border: 1px solid var(--color-border-light);
-            border-radius: 4px; background: transparent; cursor: pointer;
-        }
-        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: 4px; }
-        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>The Nightingale Ledger</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    :root{
+      --bg-start:#000000; --bg-end:#111114;
+      --card-bg:#141416; --muted:#9ca3af; --accent:#b05c6c;
+    }
+    html,body{height:100%}
+    body{
+      font-family: 'Cormorant Garamond', serif;
+      margin:0; min-height:100vh;
+      background:linear-gradient(180deg,var(--bg-start),var(--bg-end));
+      color:#e6e6e6; -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:1rem;
+    }
 
-        /* Accessibility helpers */
-        .sr-only {
-            position: absolute !important;
-            width: 1px !important;
-            height: 1px !important;
-            padding: 0 !important;
-            margin: -1px !important;
-            overflow: hidden !important;
-            clip: rect(0, 0, 0, 0) !important;
-            white-space: nowrap !important;
-            border: 0 !important;
-        }
-        .skip-link {
-            position: absolute;
-            left: 1rem;
-            top: 0.5rem;
-            background: rgba(0,0,0,0.6);
-            color: var(--color-text-base);
-            padding: 0.5rem 0.75rem;
-            border-radius: 4px;
-            z-index: 60;
-            transform: translateY(-120%);
-            transition: transform 0.2s ease;
-        }
-        .skip-link:focus {
-            transform: translateY(0);
-            outline: 3px solid var(--color-accent-secondary);
-            outline-offset: 2px;
-        }
-        :focus-visible {
-            outline: 3px solid var(--color-accent-secondary);
-            outline-offset: 2px;
-        }
+    .app-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;max-width:1100px;margin:0 auto 1.25rem}
+    .brand{font-family:'Cinzel',serif;color:var(--accent);font-size:1.6rem}
+    .sub{color:var(--muted);font-size:0.95rem}
 
-        /* Respect reduced motion */
-        @media (prefers-reduced-motion: reduce) {
-            .neon-title { animation: none !important; }
-            .card, .glowing-btn { transition: none !important; transform: none !important; }
-        }
+    .profile-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;max-width:1100px;margin:0 auto}
+    @media (max-width:720px){ .profile-grid{grid-template-columns:1fr} }
 
-        /* Modal overlay accessible sizing */
-        .modal-overlay {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-        }
-    </style>
+    .profile-card{
+      --accent: #7f00ff;
+      --status-color: #2ecc71;
+      --avatar-bg: #444;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      border:1px solid rgba(255,255,255,0.04);
+      border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      transition: transform .18s ease, box-shadow .18s ease;
+      touch-action: manipulation;
+    }
+    .profile-card:active{ transform: translateY(1px) scale(.998) }
+    .avatar{
+      width:72px;height:72px;border-radius:50%;flex:0 0 72px;display:flex;align-items:center;justify-content:center;
+      color:white;font-weight:700;font-size:1.25rem;border:3px solid rgba(255,255,255,0.06);
+    }
+    .profile-main{flex:1;min-width:0}
+    .profile-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .profile-name{font-weight:700;color:var(--accent);font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .profile-title{font-size:0.85rem;color:var(--muted)}
+    .status-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .status-dot{width:12px;height:12px;border-radius:50%;background:var(--status-color);box-shadow:0 0 8px var(--status-color)}
+    .status-text{font-size:0.9rem;color:#d6d6d6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    .card-actions{display:flex;gap:8px;align-items:center}
+    .small-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:.45rem .6rem;border-radius:8px;color:inherit;font-size:.9rem}
+    .small-btn:active{transform:scale(.99)}
+
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:60;padding:1rem}
+    .modal{width:100%;max-width:720px;background:var(--card-bg);border-radius:10px;padding:1rem;border:1px solid rgba(255,255,255,0.04);box-shadow:0 12px 40px rgba(0,0,0,0.7)}
+    .form-row{display:flex;gap:0.75rem;align-items:center}
+    .form-col{flex:1;min-width:0}
+    .color-preview{width:36px;height:36px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)}
+    .presence-select{padding:.5rem;border-radius:8px;background:var(--bg-end);border:1px solid rgba(255,255,255,0.04);color:inherit}
+
+    .muted{color:var(--muted);font-size:.85rem}
+    .hidden{display:none}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    footer{max-width:1100px;margin:1.5rem auto 0;color:var(--muted);font-size:.85rem;text-align:center}
+  </style>
 </head>
-<body class="p-4 sm:p-8">
+<body>
 
-    <a href="#main-content" class="skip-link sr-only">Skip to main content</a>
-
-    <!-- Modal for Alerts and Prompts -->
-    <div id="custom-modal" data-modal class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300 modal-overlay"
-         role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message" tabindex="-1" aria-hidden="true">
-        <div class="card p-6 w-11/12 max-w-lg space-y-4" id="modal-content-container">
-            <h3 id="modal-title" class="text-xl font-bold border-b pb-2 border-gray-700">Notice</h3>
-            <p id="modal-message" class="text-gray-300" role="status" aria-live="polite"></p>
-            <input type="text" id="modal-input" class="w-full hidden" placeholder="Enter value...">
-            <div class="flex justify-end space-x-4">
-                <button id="modal-cancel-btn" data-modal-close class="glowing-btn px-4 py-2 text-sm rounded hidden" aria-label="Cancel">Cancel</button>
-                <button id="modal-confirm-btn" class="glowing-btn px-4 py-2 text-sm rounded" aria-label="Confirm">OK</button>
-            </div>
-        </div>
+  <header class="app-header" role="banner" aria-label="App header">
+    <div>
+      <div class="brand">The Nightingale Ledger</div>
+      <div class="sub">Shared habits, points, and gentle accountability</div>
     </div>
-
-    <!-- Settings Modal -->
-    <div id="settings-modal" data-modal class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300 modal-overlay"
-         role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" aria-describedby="settings-modal-desc" tabindex="-1" aria-hidden="true">
-        <div class="card p-6 w-11/12 max-w-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <h3 id="settings-modal-title" class="text-xl font-bold border-b pb-2 border-gray-700">Theme &amp; Customization</h3>
-            <p id="settings-modal-desc" class="sr-only">Customize colors and theme presets for your ledger.</p>
-            <div class="space-y-2">
-                <label for="theme-preset-select" class="block text-sm font-medium">Theme Preset</label>
-                <select id="theme-preset-select" class="w-full" onchange="window.handlePresetChange()" aria-label="Theme preset">
-                    <option value="Nightingale">Nightingale (Dark)</option>
-                    <option value="Daybreak">Daybreak (Light)</option>
-                    <option value="Grove">Grove (Green)</option>
-                    <option value="Custom">Custom</option>
-                </select>
-                <p class="text-xs text-gray-400">Select a preset to load colors, or customize them below (sets to 'Custom').</p>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                <div class="space-y-2">
-                    <label for="color-bg-start" class="block text-sm font-medium">Background Start</label>
-                    <input type="color" id="color-bg-start" class="w-full" oninput="window.setPresetToCustom()" aria-label="Background start color">
-                </div>
-                <div class="space-y-2">
-                    <label for="color-bg-end" class="block text-sm font-medium">Background End</label>
-                    <input type="color" id="color-bg-end" class="w-full" oninput="window.setPresetToCustom()" aria-label="Background end color">
-                </div>
-                <div class="space-y-2">
-                    <label for="color-card-bg" class="block text-sm font-medium">Card Background</label>
-                    <input type="color" id="color-card-bg" class="w-full" oninput="window.setPresetToCustom()" aria-label="Card background color">
-                </div>
-                <div class="space-y-2">
-                    <label for="color-text-base" class="block text-sm font-medium">Base Text</label>
-                    <input type="color" id="color-text-base" class="w-full" oninput="window.setPresetToCustom()" aria-label="Base text color">
-                </div>
-                <div class="space-y-2">
-                    <label for="color-accent-primary" class="block text-sm font-medium">Primary Accent (Headers)</label>
-                    <input type="color" id="color-accent-primary" class="w-full" oninput="window.setPresetToCustom()" aria-label="Primary accent color">
-                </div>
-                <div class="space-y-2">
-                    <label for="color-accent-secondary" class="block text-sm font-medium">Secondary Accent (Buttons)</label>
-                    <input type="color" id="color-accent-secondary" class="w-full" oninput="window.setPresetToCustom()" aria-label="Secondary accent color">
-                </div>
-                <div class="space-y-2">
-                    <label for="color-score" class="block text-sm font-medium">Score Text</label>
-                    <input type="color" id="color-score" class="w-full" oninput="window.setPresetToCustom()" aria-label="Score text color">
-                </div>
-            </div>
-            <div class="flex justify-end space-x-4 pt-4">
-                <button onclick="window.closeSettingsModal()" class="glowing-btn px-4 py-2 text-sm rounded" aria-label="Cancel settings">Cancel</button>
-                <button onclick="window.saveSettings()" class="glowing-btn px-4 py-2 text-sm rounded" aria-label="Save settings">Save</button>
-            </div>
-        </div>
+    <div class="card-actions">
+      <button id="open-settings" class="small-btn" aria-label="Open settings"><i class="fas fa-cog" aria-hidden="true"></i></button>
     </div>
+  </header>
 
-    <!-- Edit Profile Modal -->
-    <div id="profile-modal" data-modal class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300 modal-overlay"
-         role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" aria-describedby="profile-modal-desc" tabindex="-1" aria-hidden="true">
-        <div class="card p-6 w-11/12 max-w-lg space-y-4">
-            <h3 id="profile-modal-title" class="text-xl font-bold border-b pb-2 border-gray-700">Edit Profile</h3>
-            <p id="profile-modal-desc" class="sr-only">Edit player name, title, and theme color.</p>
-            <input type="hidden" id="profile-modal-player-key" value="">
-            <div class="space-y-2">
-                <label for="profile-modal-name" class="block text-sm font-medium">Name</label>
-                <input type="text" id="profile-modal-name" class="w-full" aria-label="Player name">
+  <main id="main-content" tabindex="-1">
+    <section class="profile-grid" id="profiles" aria-label="Profiles">
+      <article id="profile-keeper" class="profile-card" data-role="keeper" style="--accent:#b05c6c;--status-color:#2ecc71;--avatar-bg:#b05c6c" role="region" aria-labelledby="keeper-name">
+        <div class="avatar" id="avatar-keeper" role="img" aria-label="Keeper avatar">A</div>
+        <div class="profile-main">
+          <div class="profile-top">
+            <div>
+              <div id="keeper-name" class="profile-name">Alex</div>
+              <div id="keeper-title" class="profile-title">The Keeper</div>
             </div>
-            <div class="space-y-2">
-                <label for="profile-modal-title" class="block text-sm font-medium">Title (e.g., Keeper, Muse)</label>
-                <input type="text" id="profile-modal-title" class="w-full" aria-label="Player title">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <div style="display:flex;gap:6px">
+                <button class="small-btn" onclick="openProfileEditor('keeper')" aria-label="Edit keeper profile"><i class="fas fa-edit" aria-hidden="true"></i></button>
+                <button class="small-btn" onclick="randomizeProfile('keeper')" aria-label="Randomize keeper profile"><i class="fas fa-random" aria-hidden="true"></i></button>
+              </div>
+              <div class="muted" id="keeper-score">0 pts</div>
             </div>
-            <div class="space-y-2">
-                <label for="profile-modal-color" class="block text-sm font-medium">Theme Color</label>
-                <input type="color" id="profile-modal-color" class="w-full" aria-label="Player theme color">
-            </div>
-            <div class="flex justify-end space-x-4">
-                <button onclick="window.closeProfileModal()" class="glowing-btn px-4 py-2 text-sm rounded" aria-label="Cancel profile edit">Cancel</button>
-                <button onclick="window.savePlayerProfile()" class="glowing-btn px-4 py-2 text-sm rounded" aria-label="Save profile">Save</button>
-            </div>
+          </div>
+          <div class="status-row">
+            <div class="status-dot" id="status-dot-keeper" aria-hidden="true"></div>
+            <div id="status-keeper" class="status-text">Feeling focused</div>
+          </div>
         </div>
-    </div>
-    
-    <!-- Initial Loading Screen (Default) -->
-    <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="text-4xl sm:text-6xl font-cinzel text-[#b05c6c] mb-6 neon-title">The Nightingale Ledger</h1>
-        <div class="text-lg text-gray-400 max-w-xl mx-auto space-y-4">
-            <p>Connecting...</p>
-            <!-- This message is updated by auth state -->
-            <p id="auth-error-message" class="text-gray-400" role="status" aria-live="polite"></p>
+      </article>
+
+      <article id="profile-nightingale" class="profile-card" data-role="nightingale" style="--accent:#7f00ff;--status-color:#f1c40f;--avatar-bg:#7f00ff" role="region" aria-labelledby="nightingale-name">
+        <div class="avatar" id="avatar-nightingale" role="img" aria-label="Nightingale avatar">N</div>
+        <div class="profile-main">
+          <div class="profile-top">
+            <div>
+              <div id="nightingale-name" class="profile-name">Riley</div>
+              <div id="nightingale-title" class="profile-title">The Nightingale</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <div style="display:flex;gap:6px">
+                <button class="small-btn" onclick="openProfileEditor('nightingale')" aria-label="Edit nightingale profile"><i class="fas fa-edit" aria-hidden="true"></i></button>
+                <button class="small-btn" onclick="randomizeProfile('nightingale')" aria-label="Randomize nightingale profile"><i class="fas fa-random" aria-hidden="true"></i></button>
+              </div>
+              <div class="muted" id="nightingale-score">0 pts</div>
+            </div>
+          </div>
+          <div class="status-row">
+            <div class="status-dot" id="status-dot-nightingale" aria-hidden="true"></div>
+            <div id="status-nightingale" class="status-text">Ready to sing</div>
+          </div>
         </div>
-    </div>
+      </article>
+    </section>
+  </main>
 
-    <!-- Auth Screen (Hidden by default) -->
-    <div id="auth-screen" class="min-h-screen hidden items-center justify-center p-6" aria-hidden="true">
-        <div class="card p-8 w-full max-w-md space-y-6" role="region" aria-labelledby="auth-heading">
-            <h2 id="auth-heading" class="text-3xl text-center">Welcome</h2>
-            <p id="auth-form-error" class="text-center text-red-400 hidden" role="alert" aria-live="assertive"></p>
-            
-            <!-- Email/Pass Form -->
-            <div class="space-y-4">
-                <input type="email" id="auth-email" placeholder="Email" class="w-full" aria-label="Email" required>
-                <input type="password" id="auth-password" placeholder="Password (6+ characters)" class="w-full" aria-label="Password" minlength="6" required>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-4">
-                <button onclick="window.signInWithEmail()" class="glowing-btn px-4 py-2 rounded w-full" aria-label="Sign in with email">Sign In</button>
-                <button onclick="window.createAccountWithEmail()" class="glowing-btn glowing-btn-create px-4 py-2 rounded w-full" aria-label="Create account with email">Create Account</button>
-            </div>
+  <footer role="contentinfo">Profiles are editable. Changes persist locally and can be synced to Firebase if configured.</footer>
 
-            <!-- Separator -->
-            <div class="flex items-center">
-                <div class="flex-grow border-t border-gray-600"></div>
-                <span class="mx-4 text-gray-400">or</span>
-                <div class="flex-grow border-t border-gray-600"></div>
-            </div>
+  <div id="profile-editor-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" aria-hidden="true">
+    <div class="modal" role="document">
+      <h3 id="profile-editor-title" style="font-family:'Cinzel',serif;margin:0 0 .5rem 0">Edit Profile</h3>
+      <form id="profile-editor-form" onsubmit="event.preventDefault(); saveProfileEditor();" aria-describedby="profile-editor-desc">
+        <p id="profile-editor-desc" class="muted">Customize name, title, accent color, avatar color, and status. Changes save locally.</p>
 
-            <!-- Google Sign-In -->
-            <button onclick="window.signInWithGoogle()" class="glowing-btn glowing-btn-google px-4 py-2 rounded w-full flex items-center justify-center" aria-label="Sign in with Google">
-                <i class="fab fa-google mr-2" aria-hidden="true"></i> Sign in with Google
-            </button>
+        <div style="display:flex;gap:1rem;margin-top:.75rem;align-items:center">
+          <div style="flex:0 0 84px">
+            <div id="editor-avatar-preview" class="avatar" style="width:84px;height:84px;border-radius:12px">A</div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <label class="sr-only" for="editor-name">Name</label>
+            <input id="editor-name" class="form-col" type="text" placeholder="Name" required style="width:100%;padding:.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+            <div style="height:.5rem"></div>
+            <label class="sr-only" for="editor-title">Title</label>
+            <input id="editor-title" class="form-col" type="text" placeholder="Title (e.g., Keeper)" style="width:100%;padding:.5rem;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+          </div>
         </div>
-    </div>
 
-    <!-- Ledger Selection Screen (Hidden by default) -->
-    <div id="ledger-select-screen" class="min-h-screen hidden items-center justify-center p-6" aria-hidden="true">
-        <div class="card p-8 w-full max-w-xl space-y-6" role="region" aria-labelledby="ledger-select-heading">
-            <h2 id="ledger-select-heading" class="text-3xl text-center">Select Your Ledger</h2>
-            <p class="text-center text-gray-400">Welcome! You're not connected to a ledger. Host a new one or join your partner's.</p>
-            
-            <p id="ledger-form-error" class="text-center text-red-400 hidden" role="alert" aria-live="assertive"></p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
+          <div>
+            <label class="sr-only" for="editor-accent">Accent color</label>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <input id="editor-accent" type="color" value="#7f00ff" aria-label="Accent color" style="width:100%;height:44px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent">
+              <div id="editor-accent-preview" class="color-preview" aria-hidden="true"></div>
+            </div>
+            <div class="muted" style="margin-top:.35rem">Accent color (name & accents)</div>
+          </div>
 
-            <!-- Host/Join Form -->
-            <div class="space-y-4">
-                <label for="ledger-code-input" class="block text-sm font-medium">Ledger Code</label>
-                <input type="text" id="ledger-code-input" placeholder="e.g., 'OurVow' or 'PartnerCode'" class="w-full" aria-label="Ledger code">
-                <p class="text-xs text-gray-400">This code is case-sensitive. Create a new one or enter your partner's code.</p>
+          <div>
+            <label class="sr-only" for="editor-avatar-color">Avatar color</label>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <input id="editor-avatar-color" type="color" value="#444444" aria-label="Avatar background color" style="width:100%;height:44px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent">
+              <div id="editor-avatar-preview-color" class="color-preview" aria-hidden="true"></div>
             </div>
-            <div class="flex flex-col sm:flex-row gap-4">
-                <button onclick="window.hostLedger()" class="glowing-btn glowing-btn-create px-4 py-2 rounded w-full" aria-label="Host new ledger">Host New Ledger</button>
-                <button onclick="window.joinLedger()" class="glowing-btn px-4 py-2 rounded w-full" aria-label="Join ledger">Join Ledger</button>
-            </div>
+            <div class="muted" style="margin-top:.35rem">Avatar background</div>
+          </div>
         </div>
-    </div>
 
-    <!-- Main Content Area (Hidden by default) -->
-    <div id="main-content" class="container mx-auto max-w-5xl hidden" tabindex="-1" aria-hidden="true">
-        
-        <!-- Header -->
-        <header class="text-center py-6 mb-8 relative">
-            <h1 class="text-4xl sm:text-6xl font-bold neon-title mb-4">The Nightingale Ledger</h1>
-            <p class="text-lg italic text-gray-400">A Shared Vow of Discipline and Delight</p>
-            <button id="open-settings-btn" onclick="window.openSettingsModal()" class="absolute top-4 right-0 sm:right-4 glowing-btn p-3 rounded-full text-xl leading-none" aria-label="Open settings">
-                <i class="fas fa-cog" aria-hidden="true"></i>
-            </button>
-        </header>
-
-        <!-- Player Scores Section -->
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12" role="region" aria-label="Player scores">
-            <!-- Keeper Card -->
-            <div id="keeper-card" class="card p-6 text-center">
-                <div class="flex items-center justify-center space-x-2 mb-2">
-                    <h2 id="keeper-title" class="text-3xl">The Keeper</h2>
-                </div>
-                <div class="flex items-center justify-center space-x-2 mb-2">
-                    <p id="player-name-keeper" class="text-xl font-semibold inline-block">User 1</p>
-                    <button onclick="window.openEditProfileModal('keeper')" class="edit-btn" aria-label="Edit Keeper profile"><i class="fas fa-edit" aria-hidden="true"></i></button>
-                </div>
-                <p id="score-keeper" class="player-score">0</p>
-            </div>
-            <!-- Nightingale Card -->
-            <div id="nightingale-card" class="card p-6 text-center">
-                <div class="flex items-center justify-center space-x-2 mb-2">
-                    <h2 id="nightingale-title" class="text-3xl">The Nightingale</h2>
-                </div>
-                <div class="flex items-center justify-center space-x-2 mb-2">
-                    <p id="player-name-nightingale" class="text-xl font-semibold inline-block">User 2</p>
-                    <button onclick="window.openEditProfileModal('nightingale')" class="edit-btn" aria-label="Edit Nightingale profile"><i class="fas fa-edit" aria-hidden="true"></i></button>
-                </div>
-                <p id="score-nightingale" class="player-score">0</p>
-            </div>
-        </section>
-        
-        <!-- Tabbed Interface -->
-        <div class="mb-12">
-            <div class="flex border-b border-[#555]" role="tablist" aria-label="Ledger sections">
-                <button onclick="window.setActiveTab('habits')" id="tab-habits" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold" role="tab" aria-controls="content-habits" aria-selected="true">Habits</button>
-                <button onclick="window.setActiveTab('rewards')" id="tab-rewards" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold" role="tab" aria-controls="content-rewards" aria-selected="false">Rewards</button>
-                <button onclick="window.setActiveTab('punishments')" id="tab-punishments" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold" role="tab" aria-controls="content-punishments" aria-selected="false">Punishments</button>
-                <button onclick="window.setActiveTab('history')" id="tab-history" class="tab-btn flex-1 py-3 text-base sm:text-lg font-semibold" role="tab" aria-controls="content-history" aria-selected="false">History</button>
-            </div>
-
-            <!-- Habits Tab Content -->
-            <section id="content-habits" class="p-2 sm:p-6 space-y-6" role="tabpanel" aria-labelledby="tab-habits">
-                <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-                    <h3 class="text-2xl">Habit Registry</h3>
-                    <button onclick="window.toggleHabitForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto" aria-controls="habit-form"><i class="fas fa-plus mr-2" aria-hidden="true"></i> Add New Habit</button>
-                </div>
-                <div id="habit-form" class="card p-4 space-y-4 hidden" aria-hidden="true">
-                    <h4 class="text-xl">Define a New Habit</h4>
-                    <input type="text" id="new-habit-desc" placeholder="Habit Description..." class="w-full" aria-label="Habit description">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <input type="number" id="new-habit-points" placeholder="Points (e.g., 10)" min="1" class="w-full" aria-label="Habit points">
-                        <input type="number" id="new-habit-times" placeholder="Times Per Week (e.g., 3)" min="1" max="7" class="w-full" aria-label="Times per week">
-                    </div>
-                    <select id="new-habit-assignee" class="w-full" aria-label="Assign habit to">
-                        <option value="" disabled selected>Assign to which role?</option>
-                        <option value="keeper">The Keeper</option>
-                        <option value="nightingale">The Nightingale</option>
-                    </select>
-                    <div class="flex flex-col sm:flex-row justify-between space-y-2 sm:space-y-0 sm:space-x-4">
-                         <button onclick="window.fillHabitForm('keeper')" class="glowing-btn px-3 py-1 rounded text-xs bg-red-800 border-red-500" aria-label="Keeper example"><i class="fas fa-magic" aria-hidden="true"></i> Keeper Example</button>
-                        <button onclick="window.fillHabitForm('nightingale')" class="glowing-btn px-3 py-1 rounded text-xs bg-purple-800 border-purple-500" aria-label="Nightingale example"><i class="fas fa-magic" aria-hidden="true"></i> Nightingale Example</button>
-                        <button onclick="window.addNewHabit()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500" aria-label="Save habit">Save Habit</button>
-                    </div>
-                </div>
-                <div id="habits-list" class="space-y-3" role="list">
-                    <p id="habits-loading">No habits defined yet.</p>
-                </div>
-            </section>
-
-            <!-- Rewards Tab Content -->
-            <section id="content-rewards" class="p-2 sm:p-6 space-y-6 hidden" role="tabpanel" aria-labelledby="tab-rewards" aria-hidden="true">
-                <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-                    <h3 class="text-2xl">Reward Catalog</h3>
-                    <button onclick="window.toggleRewardForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto" aria-controls="reward-form"><i class="fas fa-plus mr-2" aria-hidden="true"></i> Add New Reward</button>
-                </div>
-                <div id="reward-form" class="card p-4 space-y-4 hidden" aria-hidden="true">
-                    <h4 class="text-xl">Define a New Reward</h4>
-                    <input type="text" id="new-reward-title" placeholder="Reward Title..." class="w-full" aria-label="Reward title">
-                    <input type="number" id="new-reward-cost" placeholder="Point Cost (e.g., 50)" min="1" class="w-full" aria-label="Reward cost">
-                    <textarea id="new-reward-desc" placeholder="Reward Description..." class="w-full h-24" aria-label="Reward description"></textarea>
-                    <div class="flex flex-col sm:flex-row justify-between space-y-2 sm:space-y-0 sm:space-x-4">
-                        <button onclick="window.fillRewardForm()" class="glowing-btn px-3 py-1 rounded text-xs bg-purple-800 border-purple-500" aria-label="Generate reward example"><i class="fas fa-magic" aria-hidden="true"></i> Generate Example</button>
-                        <button onclick="window.addNewReward()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500" aria-label="Save reward">Save Reward</button>
-                    </div>
-                </div>
-                <div id="rewards-list" class="grid grid-cols-1 md:grid-cols-2 gap-4" role="list">
-                    <p id="rewards-loading">No rewards defined yet.</p>
-                </div>
-            </section>
-
-            <!-- Punishments Tab Content -->
-            <section id="content-punishments" class="p-2 sm:p-6 space-y-6 hidden" role="tabpanel" aria-labelledby="tab-punishments" aria-hidden="true">
-                <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-                    <h3 class="text-2xl">Vows of Consequence</h3>
-                    <button onclick="window.togglePunishmentForm()" class="glowing-btn px-4 py-2 rounded text-sm w-full sm:w-auto" aria-controls="punishment-form"><i class="fas fa-plus mr-2" aria-hidden="true"></i> Add New Punishment</button>
-                </div>
-                <div id="punishment-form" class="card p-4 space-y-4 hidden" aria-hidden="true">
-                    <h4 class="text-xl">Define a New Punishment</h4>
-                    <input type="text" id="new-punishment-title" placeholder="Punishment Title..." class="w-full" aria-label="Punishment title">
-                    <textarea id="new-punishment-desc" placeholder="Punishment Description..." class="w-full h-24" aria-label="Punishment description"></textarea>
-                    <div class="flex flex-col sm:flex-row justify-between space-y-2 sm:space-y-0 sm:space-x-4">
-                        <button onclick="window.fillPunishmentForm()" class="glowing-btn px-3 py-1 rounded text-xs bg-red-800 border-red-500" aria-label="Generate punishment example"><i class="fas fa-magic" aria-hidden="true"></i> Generate Example</button>
-                        <button onclick="window.addNewPunishment()" class="glowing-btn px-4 py-2 rounded bg-green-800 border-green-500" aria-label="Save punishment">Save Punishment</button>
-                    </div>
-                </div>
-                <div id="punishments-list" class="grid grid-cols-1 md:grid-cols-2 gap-4" role="list">
-                    <p id="punishments-loading">No punishments defined yet.</p>
-                </div>
-            </section>
-
-            <!-- History Tab Content -->
-            <section id="content-history" class="p-2 sm:p-6 space-y-6 hidden" role="tabpanel" aria-labelledby="tab-history" aria-hidden="true">
-                <h3 class="text-2xl text-center">Ledger History</h3>
-                <div class="card p-6 h-96 overflow-y-auto">
-                    <ul id="history-list" class="space-y-3" role="list">
-                        <li id="history-loading" class="text-gray-500">Awaiting ledger entry...</li>
-                    </ul>
-                </div>
-            </section>
+        <div style="display:flex;gap:.75rem;margin-top:.75rem;align-items:center">
+          <select id="editor-presence" class="presence-select" aria-label="Presence status">
+            <option value="online">Online</option>
+            <option value="idle">Idle</option>
+            <option value="dnd">Do not disturb</option>
+            <option value="offline">Offline</option>
+          </select>
+          <input id="editor-status" type="text" placeholder="Custom status (e.g., 'Working on a habit')" style="flex:1;padding:.5rem;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit" aria-label="Custom status">
         </div>
-        
-        <!-- Footer Info -->
-        <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500 space-y-2" role="contentinfo">
-            <p>App ID: <span id="current-app-id">...</span> | Ledger ID: <span id="current-ledger-id">...</span></p>
-            <p>User: <span id="current-user-email">...</span> (<button onclick="window.doSignOut()" class="underline hover:text-white" aria-label="Sign out">Sign Out</button>)</p>
-        </footer>
 
+        <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem">
+          <button type="button" class="small-btn" onclick="closeProfileEditor()" aria-label="Cancel edit">Cancel</button>
+          <button type="submit" class="small-btn" style="background:var(--accent);border-color:transparent;color:white" aria-label="Save profile">Save</button>
+        </div>
+      </form>
     </div>
+  </div>
 
-    <!-- Inline accessibility + focus-trap script -->
-    <script>
-    /**
-     * Lightweight focus-trap + ARIA helper.
-     * - Observes elements with [data-modal] and traps focus when they become visible (class 'hidden' removed).
-     * - Restores focus on close.
-     * - Closes on backdrop click and Escape.
-     * - Adds keyboard support for tablist (left/right arrows).
-     *
-     * This script is intentionally defensive: it watches for class changes so it works with existing open/close functions.
-     */
-    (function () {
-      const focusableSelectors = 'a[href], area[href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])';
-      const modals = Array.from(document.querySelectorAll('[data-modal]'));
-      const state = new Map();
-
-      function getFocusable(container) {
-        return Array.from(container.querySelectorAll(focusableSelectors)).filter(el => el.offsetParent !== null);
-      }
-
-      function activateModal(modal) {
-        if (!modal || modal.dataset._active === 'true') return;
-        modal.dataset._active = 'true';
-        modal.setAttribute('aria-hidden', 'false');
-        modal.classList.remove('hidden');
-        const previouslyFocused = document.activeElement;
-        state.set(modal, { previouslyFocused });
-        const focusables = getFocusable(modal);
-        const toFocus = focusables.length ? focusables[0] : modal;
-        toFocus.focus();
-
-        modal._keydown = function (e) {
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            closeModal(modal);
-            return;
-          }
-          if (e.key === 'Tab') {
-            const focusables = getFocusable(modal);
-            if (focusables.length === 0) {
-              e.preventDefault();
-              return;
-            }
-            const idx = focusables.indexOf(document.activeElement);
-            if (e.shiftKey) {
-              if (idx === 0 || document.activeElement === modal) {
-                focusables[focusables.length - 1].focus();
-                e.preventDefault();
-              }
-            } else {
-              if (idx === focusables.length - 1) {
-                focusables[0].focus();
-                e.preventDefault();
-              }
-            }
-          }
-        };
-        modal.addEventListener('keydown', modal._keydown);
-
-        modal._click = function (e) {
-          if (e.target === modal) {
-            closeModal(modal);
-          }
-        };
-        modal.addEventListener('mousedown', modal._click);
-      }
-
-      function closeModal(modal) {
-        if (!modal || modal.dataset._active !== 'true') return;
-        modal.dataset._active = 'false';
-        modal.setAttribute('aria-hidden', 'true');
-        modal.classList.add('hidden');
-        const s = state.get(modal) || {};
-        if (s.previouslyFocused && typeof s.previouslyFocused.focus === 'function') {
-          s.previouslyFocused.focus();
-        }
-        if (modal._keydown) modal.removeEventListener('keydown', modal._keydown);
-        if (modal._click) modal.removeEventListener('mousedown', modal._click);
-        state.delete(modal);
-      }
-
-      // Observe class changes so this works with existing open/close code that toggles 'hidden'
-      const observer = new MutationObserver(function (mutations) {
-        mutations.forEach(m => {
-          const target = m.target;
-          if (!target || !target.hasAttribute('data-modal')) return;
-          const isHidden = target.classList.contains('hidden');
-          if (!isHidden) activateModal(target);
-          else closeModal(target);
-        });
-      });
-
-      modals.forEach(modal => {
-        modal.setAttribute('aria-hidden', modal.classList.contains('hidden') ? 'true' : 'false');
-        modal.setAttribute('tabindex', '-1');
-        observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
-        // wire up any internal close buttons
-        modal.querySelectorAll('[data-modal-close]').forEach(btn => {
-          btn.addEventListener('click', () => closeModal(modal));
-        });
-      });
-
-      // Expose helpers for manual control if needed
-      window.openModal = function (id) {
-        const m = document.getElementById(id);
-        if (m) activateModal(m);
-      };
-      window.closeModal = function (id) {
-        const m = document.getElementById(id);
-        if (m) closeModal(m);
-      };
-
-      // Accessible tab keyboard support (left/right)
-      document.addEventListener('keydown', function (e) {
-        if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
-        const active = document.activeElement;
-        if (!active || active.getAttribute('role') !== 'tab') return;
-        const tablist = active.parentElement;
-        const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
-        const idx = tabs.indexOf(active);
-        if (idx === -1) return;
-        if (e.key === 'ArrowRight') {
-          e.preventDefault();
-          const next = tabs[(idx + 1) % tabs.length];
-          next.focus();
-          next.click();
-        } else if (e.key === 'ArrowLeft') {
-          e.preventDefault();
-          const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
-          prev.focus();
-          prev.click();
-        }
-      });
-
-      // Global Escape fallback: close topmost active modal
-      document.addEventListener('keydown', function (e) {
-        if (e.key !== 'Escape') return;
-        const activeModal = modals.find(m => m.dataset._active === 'true');
-        if (activeModal) closeModal(activeModal);
-      });
-
-    })();
-    </script>
-
-    <!-- External JavaScript Imports -->
-    <script src="./examples.js" defer></script>
-    <script src="./firebase_config.js" defer></script>
-    <script type="module" src="./script.js" defer></script>
-
+  <script src="./examples.js" defer></script>
+  <script src="./firebase_config.js" defer></script>
+  <script src="./script.js" defer></script>
 </body>
 </html>
