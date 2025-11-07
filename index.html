@@ -1,14 +1,382 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>The Nightingale Ledger</title>
-  <link rel="stylesheet" href="main.css">
-  <link rel="icon" href="favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Nightingale Ledger: Shared Ledger System</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts for the intimate, themed style -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Cormorant+Garamond:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <style>
+        /* Base Goth/Intimate Styling */
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            background-color: #000000; /* True Black */
+            min-height: 100vh;
+            color: #e0e0e0; /* Faint Silver text */
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        h1, h2, h3 {
+            font-family: 'Cinzel', serif;
+        }
+        .neon-title {
+            text-shadow: 0 0 5px #b05c6c, 0 0 10px #b05c6c, 0 0 15px #b05c6c;
+        }
+        .ledger-card {
+            background-color: #1a1a1a;
+            border: 1px solid #3c3c45;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s;
+        }
+        .score-card {
+            @apply flex-1 p-4 rounded-xl shadow-lg cursor-pointer transition duration-300 transform hover:scale-[1.01] flex flex-col items-center justify-center;
+            background-color: #111111;
+            border: 2px solid;
+            min-height: 150px;
+        }
+        .text-nightingale { color: #b05c6c; }
+        .bg-nightingale { background-color: #b05c6c; }
+        .border-nightingale { border-color: #b05c6c; }
+
+        .text-keeper { color: #5c8cb0; }
+        .bg-keeper { background-color: #5c8cb0; }
+        .border-keeper { border-color: #5c8cb0; }
+        
+        .btn-primary {
+            @apply inline-flex items-center justify-center px-4 py-2 font-cinzel rounded-md shadow-lg transition duration-200 ease-in-out;
+            background-color: #3c3c45;
+            color: #e0e0e0;
+            border: 1px solid #5c5c65;
+        }
+        .btn-primary:hover {
+            background-color: #5c5c65;
+        }
+        .list-item {
+            @apply flex items-center justify-between p-3 border-b border-[#3c3c45] transition duration-150;
+        }
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        .list-item:hover {
+            background-color: #111111;
+        }
+        .text-error {
+            color: #e34c4c;
+        }
+        .avatar {
+            @apply w-16 h-16 object-cover rounded-full border-2 p-0.5 mb-2 shadow-xl;
+        }
+    </style>
 </head>
-<body>
-  <div id="app"></div>
-  <script src="firebase_config.js"></script>
-  <script src="main.js"></script>
+<body class="antialiased">
+
+    <!-- Modal for Ledger Codes (CRITICAL INFO) -->
+    <div id="codes-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center p-4" onclick="window.toggleCodesModal(false)">
+        <div class="bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-[#3c3c45] max-w-lg w-full" onclick="event.stopPropagation()">
+            <h3 class="text-3xl font-cinzel text-[#b05c6c] mb-6 text-center border-b border-[#3c3c45] pb-2">Shared Ledger Codes</h3>
+            <p class="text-gray-400 mb-6 text-sm">Use these codes to ensure both partners are connected to the same ledger. **Share the App ID** with your partner.</p>
+
+            <div class="space-y-4">
+                <!-- App ID -->
+                <div class="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <p class="font-bold text-gray-300 flex justify-between items-center">
+                        Shared Ledger ID (App ID)
+                        <button onclick="window.copyToClipboard('current-app-id-modal')" class="text-xs text-blue-400 hover:text-blue-200 ml-4"><i class="fa-solid fa-copy"></i> Copy</button>
+                    </p>
+                    <code id="current-app-id-modal" class="break-all text-sm font-mono text-yellow-400">...</code>
+                </div>
+                
+                <!-- User ID -->
+                <div class="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <p class="font-bold text-gray-300">Your Unique User ID (Login Status)</p>
+                    <code id="current-user-id-modal" class="break-all text-sm font-mono text-gray-500">...</code>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-8">
+                <button onclick="window.toggleCodesModal(false)" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-md transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Profile Editing (New Customization) -->
+    <div id="edit-profile-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center p-4" onclick="window.toggleEditProfileModal(false)">
+        <div class="bg-[#1a1a1a] p-8 rounded-2xl shadow-2xl border border-[#b05c6c] max-w-md w-full" onclick="event.stopPropagation()">
+            <h3 class="text-3xl font-cinzel text-[#b05c6c] mb-6 text-center border-b border-[#3c3c45] pb-2">Edit Your Profile</h3>
+            <form id="edit-profile-form" onsubmit="window.saveProfileChanges(event)">
+                <input type="hidden" id="edit-profile-slot" value="">
+                
+                <div class="space-y-4">
+                    <!-- Name -->
+                    <div>
+                        <label for="edit-profile-name" class="block text-sm font-medium text-gray-400">Partner Name</label>
+                        <input type="text" id="edit-profile-name" required class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale">
+                    </div>
+
+                    <!-- Avatar URL -->
+                    <div>
+                        <label for="edit-avatar-url" class="block text-sm font-medium text-gray-400">Avatar Image URL (Link)</label>
+                        <input type="url" id="edit-avatar-url" placeholder="Paste image link here" class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale">
+                        <p class="text-xs text-gray-500 mt-1">Use a direct link to an image (e.g., JPEG, PNG).</p>
+                    </div>
+
+                    <!-- Status/Mood -->
+                    <div>
+                        <label for="edit-status" class="block text-sm font-medium text-gray-400">Current Status / Mood</label>
+                        <select id="edit-status" class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale">
+                            <option value="Neutral">Neutral</option>
+                            <option value="Focused">Focused 🧘</option>
+                            <option value="Tired">Tired 😴</option>
+                            <option value="Excited">Excited 🎉</option>
+                            <option value="Busy">Busy 💻</option>
+                            <option value="Happy">Happy 😊</option>
+                            <option value="Moody">Moody 😡</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end mt-8 space-x-3">
+                    <button type="button" onclick="window.toggleEditProfileModal(false)" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-md transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-[#b05c6c] hover:bg-[#c06c7c] text-white font-bold py-2 px-6 rounded-md transition-colors">
+                        Save Profile
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Main Application Content (Initially hidden) -->
+    <div id="app-content" class="container mx-auto p-4 sm:p-8 hidden">
+        
+        <!-- Header & Status Area -->
+        <header class="mb-8 border-b border-[#3c3c45] pb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <h1 class="text-4xl sm:text-6xl font-cinzel text-[#b05c6c] mb-2 sm:mb-0 neon-title">
+                    The Nightingale Ledger
+                </h1>
+                
+                <div class="flex items-center space-x-3 mt-2 sm:mt-0">
+                    
+                    <!-- Share Codes Button (The original "Options/Ledger Codes" request) -->
+                    <button onclick="window.toggleCodesModal(true)" class="btn-primary text-sm bg-gray-700 hover:bg-gray-600">
+                        <i class="fas fa-link mr-2"></i>Share Codes
+                    </button>
+                    
+                    <!-- Settings Button (The "Customization" and other "Options" request) -->
+                    <button id="settings-toggle-btn" onclick="window.toggleSettingsPanel(true)" class="btn-primary text-sm bg-gray-700 hover:bg-gray-600">
+                        <i class="fas fa-cog mr-2"></i>Settings
+                    </button>
+
+                    <!-- User Status (Addressing "login" confusion) -->
+                    <div class="text-right text-xs">
+                        <p class="text-gray-400">User ID</p>
+                        <p id="current-user-id" class="text-xs font-mono text-gray-500 truncate w-24 sm:w-auto" title="Your unique ID for this session"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Scoreboard (Now with Avatars and click functionality) -->
+            <div id="scoreboard" class="flex flex-col sm:flex-row justify-around text-center mt-6 text-xl space-y-4 sm:space-y-0 sm:space-x-4">
+                
+                <!-- Nightingale Score Card -->
+                <div id="nightingale-card" onclick="window.openEditProfile('nightingale')" class="score-card text-nightingale border-nightingale">
+                    <img id="nightingale-avatar" class="avatar border-nightingale" src="https://placehold.co/64x64/2d2d2d/c5c5c5?text=N" onerror="this.onerror=null; this.src='https://placehold.co/64x64/2d2d2d/c5c5c5?text=N';">
+                    <p class="text-sm font-cinzel text-gray-400" id="nightingale-status-display">Neutral</p>
+                    <p class="font-cinzel text-4xl" id="nightingale-score">0</p>
+                    <p class="text-xl font-cinzel" id="nightingale-name-display">Nightingale</p>
+                </div>
+
+                <!-- Keeper Score Card -->
+                <div id="keeper-card" onclick="window.openEditProfile('keeper')" class="score-card text-keeper border-keeper">
+                    <img id="keeper-avatar" class="avatar border-keeper" src="https://placehold.co/64x64/2d2d2d/c5c5c5?text=K" onerror="this.onerror=null; this.src='https://placehold.co/64x64/2d2d2d/c5c5c5?text=K';">
+                    <p class="text-sm font-cinzel text-gray-400" id="keeper-status-display">Neutral</p>
+                    <p class="font-cinzel text-4xl" id="keeper-score">0</p>
+                    <p class="text-xl font-cinzel" id="keeper-name-display">Keeper</p>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Settings Panel (Options/Reset) -->
+        <div id="settings-panel" class="ledger-card p-6 mb-8 hidden">
+            <div class="flex justify-between items-center border-b border-gray-600 pb-3 mb-4">
+                <h2 class="text-3xl font-cinzel text-gray-200">Options & Administration</h2>
+                <button onclick="window.toggleSettingsPanel(false)" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <div class="space-y-8">
+                <!-- 1. Administrative Actions (Logout/Reset) -->
+                <div class="border border-gray-700 p-4 rounded-md">
+                    <h3 class="text-xl font-cinzel text-gray-300 mb-3">Administrative Actions</h3>
+                    <p class="text-sm text-gray-500 mb-4">Use these options with caution. They affect the shared ledger state.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button onclick="window.signOutUser()" class="btn-primary bg-red-800 hover:bg-red-700 text-white">
+                            <i class="fa-solid fa-door-open mr-2"></i>Sign Out / New Session
+                        </button>
+                        <button onclick="window.resetLedger()" class="btn-primary bg-red-500 hover:bg-red-400 text-white">
+                            <i class="fa-solid fa-eraser mr-2"></i>Reset All Ledger Data
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Main Ledger Sections -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- HABITS -->
+            <section class="lg:col-span-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-3xl font-cinzel text-gray-200">Habits & Tasks</h2>
+                    <button onclick="window.toggleHabitForm(true)" class="btn-primary text-sm bg-nightingale hover:bg-[#c06c7c]">
+                        <i class="fas fa-plus mr-2"></i>Add New Habit
+                    </button>
+                </div>
+
+                <!-- Habit Creation Form -->
+                <div id="habit-form" class="ledger-card p-4 mb-6 hidden">
+                    <h3 class="text-xl font-cinzel mb-3 text-nightingale">Define a New Habit</h3>
+                    <form id="new-habit-form" onsubmit="window.saveNewHabit(event)">
+                        <div class="mb-3">
+                            <label for="new-habit-desc" class="block text-sm font-medium text-gray-400">Description</label>
+                            <input type="text" id="new-habit-desc" required class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                                <label for="new-habit-points" class="block text-sm font-medium text-gray-400">Points Awarded</label>
+                                <input type="number" id="new-habit-points" required min="1" class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale">
+                            </div>
+                            <div>
+                                <label for="new-habit-type" class="block text-sm font-medium text-gray-400">Assign To</label>
+                                <select id="new-habit-type" required class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale">
+                                    <option value="nightingale">Nightingale</option>
+                                    <option value="keeper">Keeper</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button type="submit" class="btn-primary bg-nightingale hover:bg-[#c06c7c] text-white flex-grow">Save Habit</button>
+                            <button type="button" onclick="window.fillHabitForm()" class="btn-primary bg-gray-700 hover:bg-gray-600 text-white">Example</button>
+                            <button type="button" onclick="window.toggleHabitForm(false)" class="btn-primary bg-gray-700 hover:bg-gray-600 text-white">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Habit List -->
+                <div id="habits-list" class="ledger-card divide-y divide-[#3c3c45] min-h-[100px]">
+                    <p class="p-4 text-center text-gray-500" id="habits-loading">Loading habits...</p>
+                </div>
+            </section>
+            
+            <!-- REWARDS & PUNISHMENTS -->
+            <section class="lg:col-span-1 space-y-8">
+                
+                <!-- REWARDS -->
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-3xl font-cinzel text-nightingale">Rewards</h2>
+                        <button onclick="window.toggleRewardForm(true)" class="btn-primary text-sm bg-yellow-600 hover:bg-yellow-500">
+                            <i class="fas fa-plus mr-2"></i>Add New Reward
+                        </button>
+                    </div>
+
+                    <!-- Reward Creation Form -->
+                    <div id="reward-form" class="ledger-card p-4 mb-6 hidden">
+                        <h3 class="text-xl font-cinzel mb-3 text-nightingale">Define a New Reward</h3>
+                        <form id="new-reward-form" onsubmit="window.saveNewReward(event)">
+                            <div class="mb-3">
+                                <label for="new-reward-title" class="block text-sm font-medium text-gray-400">Title</label>
+                                <input type="text" id="new-reward-title" required class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale">
+                            </div>
+                            <div class="mb-3">
+                                <label for="new-reward-cost" class="block text-sm font-medium text-gray-400">Cost (Points)</label>
+                                <input type="number" id="new-reward-cost" required min="1" class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale">
+                            </div>
+                            <div class="mb-3">
+                                <label for="new-reward-desc" class="block text-sm font-medium text-gray-400">Description</label>
+                                <textarea id="new-reward-desc" required rows="2" class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-nightingale focus:border-nightingale"></textarea>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button type="submit" class="btn-primary bg-yellow-600 hover:bg-yellow-500 text-white flex-grow">Save Reward</button>
+                                <button type="button" onclick="window.fillRewardForm()" class="btn-primary bg-gray-700 hover:bg-gray-600 text-white">Example</button>
+                                <button type="button" onclick="window.toggleRewardForm(false)" class="btn-primary bg-gray-700 hover:bg-gray-600 text-white">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Reward List -->
+                    <div id="rewards-list" class="ledger-card divide-y divide-[#3c3c45] min-h-[50px]">
+                        <p class="p-4 text-center text-gray-500" id="rewards-loading">Loading rewards...</p>
+                    </div>
+                </div>
+
+                <!-- PUNISHMENTS -->
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-3xl font-cinzel text-keeper">Punishments</h2>
+                        <button onclick="window.togglePunishmentForm(true)" class="btn-primary text-sm bg-gray-600 hover:bg-gray-500">
+                            <i class="fas fa-plus mr-2"></i>Add New Punishment
+                        </button>
+                    </div>
+
+                    <!-- Punishment Creation Form -->
+                    <div id="punishment-form" class="ledger-card p-4 mb-6 hidden">
+                        <h3 class="text-xl font-cinzel mb-3 text-keeper">Define a New Punishment</h3>
+                        <form id="new-punishment-form" onsubmit="window.saveNewPunishment(event)">
+                            <div class="mb-3">
+                                <label for="new-punishment-title" class="block text-sm font-medium text-gray-400">Title</label>
+                                <input type="text" id="new-punishment-title" required class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-keeper focus:border-keeper">
+                            </div>
+                            <div class="mb-3">
+                                <label for="new-punishment-desc" class="block text-sm font-medium text-gray-400">Description</label>
+                                <textarea id="new-punishment-desc" required rows="2" class="w-full mt-1 p-2 bg-gray-900 border border-gray-700 rounded-md text-gray-200 focus:ring-keeper focus:border-keeper"></textarea>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button type="submit" class="btn-primary bg-gray-600 hover:bg-gray-500 text-white flex-grow">Save Punishment</button>
+                                <button type="button" onclick="window.fillPunishmentForm()" class="btn-primary bg-gray-700 hover:bg-gray-600 text-white">Example</button>
+                                <button type="button" onclick="window.togglePunishmentForm(false)" class="btn-primary bg-gray-700 hover:bg-gray-600 text-white">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Punishment List -->
+                    <div id="punishments-list" class="ledger-card divide-y divide-[#3c3c45] min-h-[50px]">
+                        <p class="p-4 text-center text-gray-500" id="punishments-loading">No punishments defined yet.</p>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+        
+        <!-- Error Message Footer -->
+        <footer class="mt-12 pt-6 border-t border-[#3c3c45] text-center text-xs text-gray-500">
+            <p id="auth-error-message" class="text-error font-bold"></p>
+        </footer>
+
+    </div>
+
+    <!-- Initial Loading Screen -->
+    <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-4xl sm:text-6xl font-cinzel text-[#b05c6c] mb-6 neon-title">The Nightingale Ledger</h1>
+        <div class="text-lg text-gray-400 max-w-xl mx-auto space-y-4">
+            <p id="loading-message">Attempting to connect to the shared ledger...</p>
+        </div>
+    </div>
+
+    <!-- External JavaScript Imports -->
+    <script src="./examples.js"></script>
+    <script src="./firebase_config.js"></script>
+    <script type="module" src="./script.js"></script>
 </body>
 </html>
