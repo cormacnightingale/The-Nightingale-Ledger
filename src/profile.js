@@ -11,4 +11,4 @@ export function renderProfile(profile) {
   `;
 }
 
-// Modal code and edit logic will go here (e.g. show modal, handle submission)
+// Optionally add modal popup and handler for edit
