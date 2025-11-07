@@ -1,0 +1,55 @@
+/* --- Default styles ... --- */
+
+/* Dark Romantic Theme */
+.theme-dark-romantic {
+  --bg-color: #1a1a22;
+  --card-bg: #232333;
+  --text-color: #ffc2e2;
+  --accent-color: #9d174d;
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+.theme-dark-romantic .profile-card, 
+.theme-dark-romantic .habit-card, 
+.theme-dark-romantic .task {
+  background: var(--card-bg);
+  border: 2px solid var(--accent-color);
+}
+
+/* Goth Theme */
+.theme-goth {
+  --bg-color: #0a0a0e;
+  --card-bg: #181824;
+  --text-color: #d1d1db;
+  --accent-color: #5b21b6;
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+.theme-goth .profile-card, 
+.theme-goth .habit-card, 
+.theme-goth .task {
+  background: var(--card-bg);
+  border: 2px solid var(--accent-color);
+}
+
+.toast {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  background: #181824cc;
+  color: #fff;
+  padding: 16px 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px #000a;
+  z-index: 9999;
+  font-size: 18px;
+}
+.undo-btn {
+  background: var(--accent-color);
+  color: #fff;
+  border: none;
+  margin-left: 8px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
