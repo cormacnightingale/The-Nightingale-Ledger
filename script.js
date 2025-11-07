@@ -216,7 +216,12 @@ function renderLedger() {
     updateScoreDisplay();
 
     // Render History (simple list for now)
-    const historyList = document.getElementById('history-list');
+    // FIX: Changed 'history-list' to 'history-log' to match index.html
+    const historyList = document.getElementById('history-log');
+    if (!historyList) {
+        console.error("Critical: Could not find history container element with ID 'history-log'.");
+        return; // Prevent crash if element is missing
+    }
     historyList.innerHTML = '';
     gameState.history.slice(-5).reverse().forEach(entry => {
         const entryClass = entry.points > 0 ? 'text-green-400' : (entry.points < 0 ? 'text-red-400' : 'text-gray-400');
