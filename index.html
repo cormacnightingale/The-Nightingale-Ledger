@@ -12,73 +12,248 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <style>
-        /* Base Goth/Intimate Styling */
+        /* --- Base Styles --- */
         body {
             font-family: 'Cormorant Garamond', serif;
-            background-color: #000000; /* True Black */
+            transition: background-color 0.3s ease, color 0.3s ease;
             min-height: 100vh;
-            color: #e0e0e0; /* Faint Silver text */
             margin: 0;
             padding: 0;
             overflow-x: hidden;
         }
         h1, h2, h3 {
             font-family: 'Cinzel', serif;
-            color: #b05c6c; /* Deep Crimson */
-            text-shadow: 0 0 5px #b05c6c, 0 0 10px #7f00ff55; /* Crimson/Violet glow */
+            transition: color 0.3s ease, text-shadow 0.3s ease;
         }
         .card {
-            background-color: #1a1a1c; /* Deep Charcoal */
-            border: 2px solid #555555;
             border-radius: 8px;
-            box-shadow: 0 0 15px rgba(176, 92, 108, 0.2), 0 0 25px rgba(127, 0, 255, 0.1);
             transition: all 0.3s ease-in-out;
+            border-width: 2px; /* Default border width */
         }
-        .card:hover {
-            box-shadow: 0 0 20px rgba(176, 92, 108, 0.4), 0 0 40px rgba(127, 0, 255, 0.2);
-            transform: translateY(-2px);
-        }
-
-        /* Glowing Button Effect */
         .glowing-btn {
-            background: #28004d; /* Deep Violet */
-            color: #ffffff;
-            border: 1px solid #7f00ff;
-            box-shadow: 0 0 5px #7f00ff, 0 0 10px #7f00ffcc;
+            border: 1px solid;
             transition: all 0.3s ease-in-out;
             text-shadow: 0 0 3px #fff;
         }
         .glowing-btn:hover {
-            background: #4d0099;
-            box-shadow: 0 0 10px #7f00ff, 0 0 20px #7f00ff, 0 0 30px #7f00ffaa;
             transform: scale(1.02);
         }
         .glowing-btn:active {
             transform: scale(0.98);
         }
-
-        /* Player Score and Title Styling */
         .player-score {
             font-family: 'Cinzel', serif;
             font-size: 2.5rem;
+            transition: color 0.3s ease, text-shadow 0.3s ease;
+        }
+        input[type="text"], input[type="number"], textarea, select {
+            border-radius: 4px;
+            padding: 8px;
+            transition: border-color 0.2s, background-color 0.3s, color 0.3s;
+        }
+        input[type="color"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 2.5rem;
+            padding: 0;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+            border-radius: 4px;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 4px;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+        }
+
+        /* --- Theme: Nightingale (Default Goth) --- */
+        body.theme-goth {
+            background-color: #000000; /* True Black */
+            color: #e0e0e0; /* Faint Silver text */
+        }
+        .theme-goth h1, .theme-goth h2, .theme-goth h3 {
+            color: #b05c6c; /* Deep Crimson */
+            text-shadow: 0 0 5px #b05c6c, 0 0 10px #7f00ff55; /* Crimson/Violet glow */
+        }
+        .theme-goth .card {
+            background-color: #1a1a1c; /* Deep Charcoal */
+            border-color: #555555;
+            box-shadow: 0 0 15px rgba(176, 92, 108, 0.2), 0 0 25px rgba(127, 0, 255, 0.1);
+        }
+        .theme-goth .card:hover {
+            box-shadow: 0 0 20px rgba(176, 92, 108, 0.4), 0 0 40px rgba(127, 0, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        .theme-goth .glowing-btn {
+            background: #28004d; /* Deep Violet */
+            color: #ffffff;
+            border-color: #7f00ff;
+            box-shadow: 0 0 5px #7f00ff, 0 0 10px #7f00ffcc;
+        }
+        .theme-goth .glowing-btn:hover {
+            background: #4d0099;
+            box-shadow: 0 0 10px #7f00ff, 0 0 20px #7f00ff, 0 0 30px #7f00ffaa;
+        }
+        .theme-goth .player-score {
             color: #ff9900; /* Gold/Amber glow */
             text-shadow: 0 0 5px #ff9900, 0 0 10px #cc7a00;
         }
+        .theme-goth input, .theme-goth textarea, .theme-goth select {
+            background-color: #0d0d0f;
+            border: 1px solid #555555;
+            color: #e0e0e0;
+        }
+        .theme-goth input:focus, .theme-goth textarea:focus, .theme-goth select:focus {
+            border-color: #7f00ff;
+            box-shadow: 0 0 5px rgba(127, 0, 255, 0.5);
+        }
+        .theme-goth .tab-active {
+            border-color: #b05c6c; /* Crimson */
+            color: #ffffff;
+        }
+        .theme-goth .tab-inactive {
+            border-color: transparent;
+            color: #9ca3af; /* gray-400 */
+        }
+        .theme-goth .tab-inactive:hover {
+            color: #ffffff;
+        }
 
-        /* Animated Title Text */
+        /* --- Theme: Daybreak (Light) --- */
+        body.theme-light {
+            background-color: #f3f4f6; /* gray-100 */
+            color: #1f2937; /* gray-800 */
+        }
+        .theme-light h1, .theme-light h2, .theme-light h3 {
+            color: #4f46e5; /* Indigo-600 */
+            text-shadow: none;
+        }
+        .theme-light .card {
+            background-color: #ffffff;
+            border-color: #e5e7eb; /* gray-200 */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        .theme-light .card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+        .theme-light .glowing-btn {
+            background: #4f46e5; /* Indigo-600 */
+            color: #ffffff;
+            border-color: #4338ca; /* Indigo-700 */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .theme-light .glowing-btn:hover {
+            background: #4338ca; /* Indigo-700 */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .theme-light .player-score {
+            color: #3730a3; /* Indigo-800 */
+            text-shadow: none;
+        }
+        .theme-light input, .theme-light textarea, .theme-light select {
+            background-color: #f9fafb; /* gray-50 */
+            border: 1px solid #d1d5db; /* gray-300 */
+            color: #1f2937;
+        }
+        .theme-light input:focus, .theme-light textarea:focus, .theme-light select:focus {
+            border-color: #4f46e5; /* Indigo-600 */
+            box-shadow: 0 0 5px rgba(79, 70, 229, 0.5);
+        }
+        .theme-light .tab-active {
+            border-color: #4f46e5; /* Indigo-600 */
+            color: #1f2937; /* gray-800 */
+        }
+        .theme-light .tab-inactive {
+            border-color: transparent;
+            color: #6b7280; /* gray-500 */
+        }
+        .theme-light .tab-inactive:hover {
+            color: #1f2937;
+        }
+
+        /* --- Theme: Grove (Green) --- */
+        body.theme-forest {
+            background-color: #181c18; /* Dark Green-Gray */
+            color: #d4d4d8; /* zinc-300 */
+        }
+        .theme-forest h1, .theme-forest h2, .theme-forest h3 {
+            color: #65a30d; /* Lime-600 */
+            text-shadow: 0 0 5px #a3e63555; /* Lime-400 glow */
+        }
+        .theme-forest .card {
+            background-color: #202620; /* Darker Green-Gray */
+            border-color: #3f6212; /* Lime-800 */
+            box-shadow: 0 0 15px rgba(101, 163, 13, 0.2);
+        }
+        .theme-forest .card:hover {
+            box-shadow: 0 0 20px rgba(101, 163, 13, 0.4);
+            transform: translateY(-2px);
+        }
+        .theme-forest .glowing-btn {
+            background: #3f6212; /* Lime-800 */
+            color: #ffffff;
+            border-color: #a3e635; /* Lime-400 */
+            box-shadow: 0 0 5px #a3e635, 0 0 10px #a3e635cc;
+        }
+        .theme-forest .glowing-btn:hover {
+            background: #4d7c0f; /* Lime-700 */
+            box-shadow: 0 0 10px #a3e635, 0 0 20px #a3e635;
+        }
+        .theme-forest .player-score {
+            color: #a3e635; /* Lime-400 */
+            text-shadow: 0 0 5px #a3e635, 0 0 10px #84cc16;
+        }
+        .theme-forest input, .theme-forest textarea, .theme-forest select {
+            background-color: #1a201a;
+            border: 1px solid #3f6212;
+            color: #d4d4d8;
+        }
+        .theme-forest input:focus, .theme-forest textarea:focus, .theme-forest select:focus {
+            border-color: #a3e635;
+            box-shadow: 0 0 5px rgba(163, 230, 53, 0.5);
+        }
+        .theme-forest .tab-active {
+            border-color: #65a30d; /* Lime-600 */
+            color: #ffffff;
+        }
+        .theme-forest .tab-inactive {
+            border-color: transparent;
+            color: #a1a1aa; /* zinc-400 */
+        }
+        .theme-forest .tab-inactive:hover {
+            color: #ffffff;
+        }
+
+
+        /* Animated Title Text (Shared) */
         @keyframes neon-glow {
             0%, 100% { text-shadow: 0 0 5px #b05c6c, 0 0 10px #7f00ff, 0 0 15px #b05c6c; }
             50% { text-shadow: 0 0 10px #ff004c, 0 0 20px #ff004c, 0 0 30px #7f00ff; }
         }
-        .neon-title {
+        .theme-goth .neon-title {
             animation: neon-glow 5s ease-in-out infinite alternate;
         }
+        /* Disable neon glow on other themes */
+        .theme-light .neon-title, .theme-forest .neon-title {
+            animation: none;
+        }
 
-        /* Edit Button Styling */
+
+        /* Edit Button Styling (Shared) */
         .edit-btn {
-            color: #b05c6c;
+            color: #9ca3af; /* gray-400 */
             opacity: 0.7;
-            transition: opacity 0.2s;
+            transition: all 0.2s;
             cursor: pointer;
             background: none;
             border: none;
@@ -88,26 +263,12 @@
         }
         .edit-btn:hover {
             opacity: 1;
-            color: #7f00ff;
-        }
-
-        /* Input/Form styling */
-        input[type="text"], input[type="number"], textarea, select {
-            background-color: #0d0d0f;
-            border: 1px solid #555555;
-            color: #e0e0e0;
-            border-radius: 4px;
-            padding: 8px;
-            transition: border-color 0.2s;
-        }
-        input:focus, textarea:focus, select:focus {
-            border-color: #7f00ff;
-            outline: none;
-            box-shadow: 0 0 5px rgba(127, 0, 255, 0.5);
+            color: #ffffff;
+            transform: scale(1.1);
         }
     </style>
 </head>
-<body class="p-4 sm:p-8">
+<body class="p-4 sm:p-8 theme-goth"> <!-- Default theme class -->
 
     <!-- Modal for Alerts and Prompts -->
     <div id="custom-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
@@ -121,14 +282,67 @@
             </div>
         </div>
     </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
+        <div class="card p-6 w-11/12 max-w-lg space-y-4">
+            <h3 class="text-xl font-bold border-b pb-2 border-gray-700">Settings</h3>
+            
+            <!-- Theme Selection -->
+            <div class="space-y-2">
+                <label for="theme-select" class="block text-sm font-medium">Select Theme</label>
+                <select id="theme-select" class="w-full">
+                    <option value="theme-goth">Nightingale (Default)</option>
+                    <option value="theme-light">Daybreak (Light)</option>
+                    <option value="theme-forest">Grove (Green)</option>
+                </select>
+            </div>
+            <!-- Future settings can be added here -->
+
+            <div class="flex justify-end space-x-4">
+                <button onclick="window.closeSettingsModal()" class="glowing-btn px-4 py-2 text-sm rounded">Cancel</button>
+                <button onclick="window.saveSettings()" class="glowing-btn px-4 py-2 text-sm rounded">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="profile-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-70 transition-opacity duration-300">
+        <div class="card p-6 w-11/12 max-w-lg space-y-4">
+            <h3 id="profile-modal-title" class="text-xl font-bold border-b pb-2 border-gray-700">Edit Profile</h3>
+            <input type="hidden" id="profile-modal-player-key" value="">
+            
+            <div class="space-y-2">
+                <label for="profile-modal-name" class="block text-sm font-medium">Name</label>
+                <input type="text" id="profile-modal-name" class="w-full">
+            </div>
+            <div class="space-y-2">
+                <label for="profile-modal-title" class="block text-sm font-medium">Title (e.g., Keeper, Muse)</label>
+                <input type="text" id="profile-modal-title" class="w-full">
+            </div>
+            <div class="space-y-2">
+                <label for="profile-modal-color" class="block text-sm font-medium">Theme Color</label>
+                <input type="color" id="profile-modal-color" class="w-full">
+            </div>
+
+            <div class="flex justify-end space-x-4">
+                <button onclick="window.closeProfileModal()" class="glowing-btn px-4 py-2 text-sm rounded">Cancel</button>
+                <button onclick="window.savePlayerProfile()" class="glowing-btn px-4 py-2 text-sm rounded">Save</button>
+            </div>
+        </div>
+    </div>
     
     <!-- Main Content Area -->
     <div id="main-content" class="container mx-auto max-w-5xl hidden">
         
         <!-- Header -->
-        <header class="text-center py-6 mb-8">
+        <header class="text-center py-6 mb-8 relative">
             <h1 class="text-5xl sm:text-7xl font-bold neon-title mb-4">The Nightingale Ledger</h1>
             <p class="text-lg italic text-gray-400">A Shared Vow of Discipline and Delight</p>
+            <!-- Settings Button -->
+            <button onclick="window.openSettingsModal()" class="absolute top-4 right-4 glowing-btn p-3 rounded-full text-xl leading-none">
+                <i class="fas fa-cog"></i>
+            </button>
         </header>
 
         <!-- Player Scores Section -->
@@ -136,12 +350,13 @@
             <!-- Keeper Card -->
             <div id="keeper-card" class="card p-6 text-center">
                 <div class="flex items-center justify-center space-x-2 mb-2">
-                    <h2 id="keeper-title" class="text-3xl text-red-500 hover:text-red-300 transition-colors cursor-pointer" onclick="window.editPlayerTitle('keeper')">The Keeper</h2>
-                    <button onclick="window.editPlayerTitle('keeper')" class="edit-btn"><i class="fas fa-edit"></i></button>
+                    <!-- Title (color applied via JS) -->
+                    <h2 id="keeper-title" class="text-3xl">The Keeper</h2>
                 </div>
                 <div class="flex items-center justify-center space-x-2 mb-2">
-                    <p id="player-name-keeper" class="text-xl font-semibold inline-block hover:text-gray-100 transition-colors cursor-pointer" onclick="window.editPlayerName('keeper')">User 1</p>
-                    <button onclick="window.editPlayerName('keeper')" class="edit-btn"><i class="fas fa-edit"></i></button>
+                    <p id="player-name-keeper" class="text-xl font-semibold inline-block">User 1</p>
+                    <!-- Single Edit Button -->
+                    <button onclick="window.openEditProfileModal('keeper')" class="edit-btn"><i class="fas fa-edit"></i></button>
                 </div>
                 <p id="score-keeper" class="player-score">0</p>
             </div>
@@ -149,39 +364,31 @@
             <!-- Nightingale Card -->
             <div id="nightingale-card" class="card p-6 text-center">
                 <div class="flex items-center justify-center space-x-2 mb-2">
-                    <h2 id="nightingale-title" class="text-3xl text-purple-400 hover:text-purple-200 transition-colors cursor-pointer" onclick="window.editPlayerTitle('nightingale')">The Nightingale</h2>
-                    <button onclick="window.editPlayerTitle('nightingale')" class="edit-btn"><i class="fas fa-edit"></i></button>
+                    <!-- Title (color applied via JS) -->
+                    <h2 id="nightingale-title" class="text-3xl">The Nightingale</h2>
                 </div>
                 <div class="flex items-center justify-center space-x-2 mb-2">
-                    <p id="player-name-nightingale" class="text-xl font-semibold inline-block hover:text-gray-100 transition-colors cursor-pointer" onclick="window.editPlayerName('nightingale')">User 2</p>
-                    <button onclick="window.editPlayerName('nightingale')" class="edit-btn"><i class="fas fa-edit"></i></button>
+                    <p id="player-name-nightingale" class="text-xl font-semibold inline-block">User 2</p>
+                    <!-- Single Edit Button -->
+                    <button onclick="window.openEditProfileModal('nightingale')" class="edit-btn"><i class="fas fa-edit"></i></button>
                 </div>
                 <p id="score-nightingale" class="player-score">0</p>
             </div>
         </section>
-
-        <!-- Quick Actions & History -->
-        <section class="mb-12">
-            <h2 class="text-3xl mb-4 text-center">Ledger History</h2>
-            <div class="card p-6 h-64 overflow-y-auto">
-                <ul id="history-list" class="space-y-3">
-                    <li id="history-loading" class="text-gray-500">Awaiting ledger entry...</li>
-                </ul>
-            </div>
-        </section>
         
-        <!-- Tabbed Interface for Habits, Rewards, Punishments -->
+        <!-- Tabbed Interface for Habits, Rewards, Punishments, History -->
         <div class="mb-12">
             <div class="flex border-b border-[#555]">
-                <button onclick="window.setActiveTab('habits')" id="tab-habits" class="flex-1 py-3 text-lg font-semibold border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">Habits</button>
-                <button onclick="window.setActiveTab('rewards')" id="tab-rewards" class="flex-1 py-3 text-lg font-semibold border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">Rewards</button>
-                <button onclick="window.setActiveTab('punishments')" id="tab-punishments" class="flex-1 py-3 text-lg font-semibold border-b-2 border-transparent text-gray-400 hover:text-white transition-colors">Punishments</button>
+                <button onclick="window.setActiveTab('habits')" id="tab-habits" class="flex-1 py-3 text-lg font-semibold border-b-2">Habits</button>
+                <button onclick="window.setActiveTab('rewards')" id="tab-rewards" class="flex-1 py-3 text-lg font-semibold border-b-2">Rewards</button>
+                <button onclick="window.setActiveTab('punishments')" id="tab-punishments" class="flex-1 py-3 text-lg font-semibold border-b-2">Punishments</button>
+                <button onclick="window.setActiveTab('history')" id="tab-history" class="flex-1 py-3 text-lg font-semibold border-b-2">History</button>
             </div>
 
             <!-- Habits Tab Content -->
             <section id="content-habits" class="p-6 space-y-6">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-2xl text-red-400">Habit Registry</h3>
+                    <h3 class="text-2xl">Habit Registry</h3>
                     <button onclick="window.toggleHabitForm()" class="glowing-btn px-4 py-2 rounded text-sm"><i class="fas fa-plus mr-2"></i> Add New Habit</button>
                 </div>
 
@@ -214,7 +421,7 @@
             <!-- Rewards Tab Content -->
             <section id="content-rewards" class="p-6 space-y-6 hidden">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-2xl text-purple-400">Reward Catalog</h3>
+                    <h3 class="text-2xl">Reward Catalog</h3>
                     <button onclick="window.toggleRewardForm()" class="glowing-btn px-4 py-2 rounded text-sm"><i class="fas fa-plus mr-2"></i> Add New Reward</button>
                 </div>
                 
@@ -241,7 +448,7 @@
             <!-- Punishments Tab Content -->
             <section id="content-punishments" class="p-6 space-y-6 hidden">
                 <div class="flex justify-between items-center">
-                    <h3 class="text-2xl text-red-400">Vows of Consequence</h3>
+                    <h3 class="text-2xl">Vows of Consequence</h3>
                     <button onclick="window.togglePunishmentForm()" class="glowing-btn px-4 py-2 rounded text-sm"><i class="fas fa-plus mr-2"></i> Add New Punishment</button>
                 </div>
 
@@ -260,7 +467,16 @@
                 <div id="punishments-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <p id="punishments-loading">No punishments defined yet.</p>
                 </div>
+            </section>
 
+            <!-- History Tab Content (Moved) -->
+            <section id="content-history" class="p-6 space-y-6 hidden">
+                <h3 class="text-2xl text-center">Ledger History</h3>
+                <div class="card p-6 h-96 overflow-y-auto"> <!-- Increased height -->
+                    <ul id="history-list" class="space-y-3">
+                        <li id="history-loading" class="text-gray-500">Awaiting ledger entry...</li>
+                    </ul>
+                </div>
             </section>
         </div>
         
