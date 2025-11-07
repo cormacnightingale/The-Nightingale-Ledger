@@ -1,71 +1,31 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-<<<<<<< HEAD
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-// --- Global Variables (Standard Web Deployment) ---\n
-// Use a static, consistent ID for this application instance across all deployments.
-const appId = 'nightingale-ledger-v1';
-
-// We assume firebaseConfig is available globally (loaded via ./firebase_config.js)
-// The firebaseConfig object will be accessed directly.
-// The initialAuthToken is null for a standard web deployment.
-const initialAuthToken = null; 
-=======
-import { 
-    getAuth, 
-    signInAnonymously, 
-    signInWithCustomToken, 
-    onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { 
-    getFirestore, 
-    doc, 
-    onSnapshot, 
-    setDoc, 
-    updateDoc, 
-    arrayUnion,
-    getDoc, 
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Set Firestore logging level to Debug for visibility in the console
-setLogLevel('debug');
+// Set Firestore log level to Debug for better visibility
+setLogLevel('Debug');
 
 // --- Global Variables (Canvas Environment) ---
-
-// Use provided globals, falling back to local defaults if undefined
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'nightingale-ledger-v1';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : window.firebaseConfig;
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
->>>>>>> parent of 68fca71 (Theme)
 
-// --- Firebase/App State ---
+// --- Firebase/App State ---\
 let app;
 let db;
 let auth;
 let userId = null;
-<<<<<<< HEAD
 // Path for public/shared data: artifacts/{appId}/public/data/ledger_state/{docId}
-=======
->>>>>>> parent of 68fca71 (Theme)
-let GAME_STATE_PATH = null; 
+const GAME_STATE_DOC_PATH = `artifacts/${appId}/public/data/ledger_state/ledger_data`; 
 const GAME_STATE_DOC_ID = 'ledger_data';
+
 let gameState = {
-<<<<<<< HEAD
+    // Default values for player names and titles (now editable)
     players: {
-        keeper: 'User 1',
-        nightingale: 'User 2'
-=======
-    // Customization and Shared State
-    playerNames: {
-        keeper: 'Keeper',
-        nightingale: 'Nightingale'
->>>>>>> parent of 68fca71 (Theme)
+        keeper: { name: 'The Keeper', title: 'Keeper' },
+        nightingale: { name: 'The Nightingale', title: 'Nightingale' }
     },
-    themeColor: '#b05c6c', // Default: Deep Plum
-    
-    // Core Game Mechanics
     scores: {
         keeper: 0,
         nightingale: 0
@@ -79,1438 +39,589 @@ let gameState = {
 // --- Utility Functions ---
 
 /**
-<<<<<<< HEAD
- * Custom modal implementation for alerts and notices (replaces window.alert).
- * @param {string} title 
- * @param {string} message 
+ * Custom modal implementation for alerts and notices (replaces window.alert/confirm)
  */
-function showModal(title, message) {
-    document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-message').textContent = message;
-    document.getElementById('custom-modal').classList.remove('hidden');
-}
+function showModal(title, message, isPrompt = false, defaultValue = '') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('custom-modal');
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-message').textContent = message;
+        
+        const input = document.getElementById('modal-input');
+        const cancelBtn = document.getElementById('modal-cancel-btn');
+        const confirmBtn = document.getElementById('modal-confirm-btn');
 
-/**
- * Closes the custom modal.
- */
-window.closeModal = function() {
-    document.getElementById('custom-modal').classList.add('hidden');
-}
+        if (isPrompt) {
+            input.value = defaultValue;
+            input.classList.remove('hidden');
+            cancelBtn.classList.remove('hidden');
+            confirmBtn.textContent = 'Save';
+        } else {
+            input.classList.add('hidden');
+            cancelBtn.classList.add('hidden');
+            confirmBtn.textContent = 'OK';
+        }
 
-/**
- * Generates a unique ID for new documents/items.
- * @returns {string} A unique ID.
- */
-function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-}
-
-/**
- * Formats a timestamp into a readable date/time string.
- * @param {number} timestamp - Unix timestamp.
- * @returns {string} Formatted date/time string.
- */
-function formatTimestamp(timestamp) {
-    return new Date(timestamp).toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-// --- Theme Management ---
-
-const THEME_KEY = 'nightingale_theme';
-const ALL_THEMES = ['default-theme', 'parchment-theme', 'forest-theme'];
-
-/**
- * Toggles the visibility of the Options/Theme modal.
- */
-window.toggleOptionsModal = function() {
-    const modal = document.getElementById('options-modal');
-    modal.classList.toggle('hidden');
-    // Update active state of buttons when opening
-    if (!modal.classList.contains('hidden')) {
-        updateThemeButtons();
-    }
-}
-
-/**
- * Applies the selected theme to the body and saves it to localStorage.
- * @param {string} themeName - The theme class to apply (e.g., 'default-theme').
- */
-window.applyTheme = function(themeName) {
-    if (!ALL_THEMES.includes(themeName)) {
-        console.error("Invalid theme name:", themeName);
-        return;
-    }
-    
-    // 1. Remove all theme classes and add the new one
-    document.body.classList.remove(...ALL_THEMES);
-    document.body.classList.add(themeName);
-    
-    // 2. Save the preference
-    localStorage.setItem(THEME_KEY, themeName);
-=======
- * Custom modal implementation for alerts and notices (replaces native window.alert/confirm)
- * @param {string} title - The title of the modal.
- * @param {string} message - The main message.
- * @param {boolean} isConfirm - If true, shows OK and Cancel buttons (confirm dialog).
- * @returns {Promise<boolean>} Resolves to true for OK, false/undefined for Cancel/Alert.
- */
-function showModal(title, message, isConfirm = false) {
-    const modalOverlay = document.getElementById('modal-overlay');
-    const modalTitle = document.getElementById('modal-title');
-    const modalMessage = document.getElementById('modal-message');
-    const okBtn = document.getElementById('modal-ok-btn');
-    const cancelBtn = document.getElementById('modal-cancel-btn');
-
-    if (!modalOverlay || !modalTitle || !modalMessage || !okBtn || !cancelBtn) {
-        console.error('Modal elements not found. Falling back to console log.');
-        return isConfirm ? Promise.resolve(false) : Promise.resolve();
-    }
-
-    modalTitle.textContent = title;
-    modalMessage.textContent = message;
-
-    if (isConfirm) {
-        cancelBtn.classList.remove('hidden');
-    } else {
-        cancelBtn.classList.add('hidden');
-    }
-
-    // Ensure it's visible
-    modalOverlay.classList.remove('hidden');
-    modalOverlay.classList.add('flex');
-
-    return new Promise(resolve => {
-        const resolveAndCleanup = (result) => {
-            modalOverlay.classList.add('hidden');
-            modalOverlay.classList.remove('flex');
-            okBtn.onclick = null;
-            cancelBtn.onclick = null;
-            resolve(result);
+        const handleConfirm = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+            resolve(isPrompt ? input.value : true);
         };
 
-        okBtn.onclick = () => resolveAndCleanup(true);
-        cancelBtn.onclick = () => resolveAndCleanup(false);
+        const handleCancel = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            confirmBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+            resolve(null); // Return null for prompt cancellation
+        };
+
+        confirmBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', handleCancel);
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        if (isPrompt) input.focus();
     });
 }
 
-/**
- * Generates a consistent Firestore document path for the shared ledger data.
- * @param {string} docId - The document ID (always 'ledger_data' here).
- * @returns {string} The full Firestore path.
- */
-function getGameStateDocPath(docId) {
-    // Public path: artifacts/{appId}/public/data/ledger_state/{docId}
-    return `artifacts/${appId}/public/data/ledger_state/${docId}`;
+window.alert = function(message) {
+    showModal("Notice", message);
 }
 
-// --- Firebase Initialization & Authentication ---
->>>>>>> parent of 68fca71 (Theme)
+// --- Firebase Initialization and Auth ---
 
-    // 3. Update button active states
-    updateThemeButtons();
-    
-    // 4. Show a quick confirmation
-    const statusEl = document.getElementById('theme-status');
-    // Get theme display name from the button data-theme attribute
-    const themeButton = document.querySelector(`[data-theme="${themeName}"] span.font-semibold`);
-    const themeDisplayName = themeButton ? themeButton.textContent : themeName.split('-')[0].charAt(0).toUpperCase() + themeName.split('-')[0].slice(1);
-    
-    statusEl.textContent = `Theme set to: ${themeDisplayName}.`;
-    setTimeout(() => statusEl.textContent = '', 2000);
-
-    // Re-render to ensure tab border color updates immediately
-    if (db) renderLedger();
-}
-
-/**
- * Updates the visual active state of the theme buttons in the options modal.
- */
-function updateThemeButtons() {
-    const currentTheme = localStorage.getItem(THEME_KEY) || 'default-theme';
-    const buttons = document.querySelectorAll('.theme-button');
-    buttons.forEach(button => {
-        const theme = button.getAttribute('data-theme');
-        if (theme === currentTheme) {
-            button.setAttribute('data-active', 'true');
-        } else {
-            button.setAttribute('data-active', 'false');
-        }
-    });
-}
-
-/**
- * Loads the saved theme from localStorage on startup.
- */
-function loadTheme() {
-    const savedTheme = localStorage.getItem(THEME_KEY);
-    if (savedTheme && ALL_THEMES.includes(savedTheme)) {
-        window.applyTheme(savedTheme);
-    } else {
-        // Ensure default theme is explicitly set if nothing is saved
-        window.applyTheme('default-theme');
-    }
-}
-
-
-// --- Firebase Initialization ---
-
-/**
- * Initializes Firebase App and Authentication.
- */
 async function initFirebase() {
     try {
-        // The firebaseConfig is available globally via the separate script file.
-        // NOTE: The canvas environment may provide __firebase_config globally. 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : window.firebaseConfig;
-        
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
-<<<<<<< HEAD
-
-        // Load theme as soon as possible for visual consistency
-        loadTheme(); 
         
-        // Authenticate user
-        // The canvas environment provides __initial_auth_token.
-        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : initialAuthToken;
-
-        if (token) {
-            await auth.signInWithCustomToken(token);
+        // Initial authentication logic
+        if (initialAuthToken) {
+            await signInWithCustomToken(auth, initialAuthToken);
         } else {
-            // Sign in anonymously if no custom token is provided
+            // Fallback for standard web deployment without a custom token
             await signInAnonymously(auth);
         }
-=======
->>>>>>> parent of 68fca71 (Theme)
 
-        // Set up the path now that we have the appId
-        GAME_STATE_PATH = getGameStateDocPath(GAME_STATE_DOC_ID);
-        
-        // Authenticate using the custom token or anonymously
-        await new Promise((resolve) => {
-            if (initialAuthToken) {
-                signInWithCustomToken(auth, initialAuthToken)
-                    .then(() => resolve())
-                    .catch((error) => {
-                        console.error("Custom Token Sign-In Failed, proceeding to anonymous sign-in.", error);
-                        signInAnonymously(auth).then(() => resolve());
-                    });
-            } else {
-                signInAnonymously(auth).then(() => resolve());
-            }
-        });
-
-        // Listen for Auth State Changes
+        // Wait for auth state to be resolved
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 userId = user.uid;
-<<<<<<< HEAD
-                // Path for shared data: /artifacts/{appId}/public/data/ledger_state/ledger_data
-                const currentAppId = typeof __app_id !== 'undefined' ? __app_id : appId;
-                GAME_STATE_PATH = `artifacts/${currentAppId}/public/data/ledger_state/${GAME_STATE_DOC_ID}`;
-                
-                // Display debug info
                 document.getElementById('current-user-id').textContent = userId;
-                document.getElementById('current-app-id').textContent = currentAppId;
-
-                // Start listening to the ledger
-                listenToLedger();
-
-                // Hide loading screen and show app container
-                document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('app-container').classList.remove('hidden');
-
-            } else {
-                // User is signed out (this should ideally not happen in the Canvas context)
-                console.log("User signed out or auth failed.");
-                document.getElementById('auth-error-message').textContent = "Authentication failed. Please check environment configuration.";
-            }
-        });
-
-    } catch (error) {
-        console.error("Firebase Initialization Error:", error);
-        document.getElementById('auth-error-message').textContent = `Connection Error: ${error.message}`;
-    }
-}
-
-
-// --- Firestore Listeners and Updates (CRUD Operations) ---
-
-/**
- * Sets up a real-time listener for the entire ledger state.
- */
-function listenToLedger() {
-    const docRef = doc(db, GAME_STATE_PATH);
-    onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-            // Document exists, load and update the state
-            gameState = docSnap.data();
-            console.log("Ledger updated:", gameState);
-        } else {
-            // Document does not exist, initialize it
-            console.log("Ledger does not exist, initializing...");
-            // Initialize with the default structure
-            saveGameState(true); 
-=======
-                // Display the user ID and app ID (full and short versions)
-                document.getElementById('current-user-id').textContent = userId;
-                document.getElementById('current-user-id-short').textContent = userId.substring(0, 8) + '...';
                 document.getElementById('current-app-id').textContent = appId;
-                document.getElementById('current-app-id-full').textContent = appId;
-
-                // Setup the data listener
-                setupDataListener();
-
-                // Hide loading screen, show main content
+                
+                // Once authenticated, start listening to the shared ledger state
                 document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('main-content-wrapper').classList.remove('hidden');
-
+                document.getElementById('main-content').classList.remove('hidden');
+                listenToGameState();
+                
             } else {
-                console.log("User signed out or failed to sign in.");
-                const authErrorEl = document.getElementById('auth-error-message');
-                if (authErrorEl) authErrorEl.textContent = "Authentication failed. Please check setup.";
+                // If auth fails for any reason
+                console.error("Authentication failed or user logged out.");
+                document.getElementById('auth-error-message').textContent = 'Authentication failed. Please check environment configuration.';
             }
         });
-
-    } catch (e) {
-        console.error("Firebase Initialization Error:", e);
-        const authErrorEl = document.getElementById('auth-error-message');
-        if (authErrorEl) authErrorEl.textContent = "Could not initialize Firebase. Check console for details.";
+    } catch (error) {
+        console.error("Firebase initialization failed:", error);
+        document.getElementById('loading-screen').classList.remove('hidden');
+        document.getElementById('auth-error-message').textContent = `Connection Error: ${error.message}.`;
     }
 }
 
-// --- Firestore Data Listener ---
+// --- Firestore Read/Write ---
 
-function setupDataListener() {
-    const docRef = doc(db, GAME_STATE_PATH);
-
-    // Initial check: if the document doesn't exist, create it with initial state
-    getDoc(docRef).then(docSnap => {
-        if (!docSnap.exists()) {
-            console.log("No ledger data found, initializing new document.");
-            setDoc(docRef, gameState);
-        }
-    }).catch(error => {
-        console.error("Error checking initial document existence:", error);
-    });
-
-    // Setup real-time listener
+function listenToGameState() {
+    const docRef = doc(db, GAME_STATE_DOC_PATH);
     onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
-            // Merge existing game state with fresh data, using defaults for missing fields
-            const data = docSnap.data();
-            gameState = {
-                ...gameState, // Preserve defaults
-                ...data, // Overwrite with loaded data
-                // Ensure sub-objects exist
-                playerNames: data.playerNames || { keeper: 'Keeper', nightingale: 'Nightingale' },
-                scores: data.scores || { keeper: 0, nightingale: 0 },
-                habits: data.habits || [],
-                rewards: data.rewards || [],
-                punishments: data.punishments || [],
-                history: data.history || [],
-            };
-            
-            console.log("Ledger data updated:", gameState);
-            
-            // Apply theme and render UI
-            applyTheme(gameState.themeColor);
-            renderLedger();
+            // Merge existing state with fetched state to prevent overwriting missing fields
+            const fetchedState = docSnap.data();
+            gameState = { ...gameState, ...fetchedState };
+            renderState();
         } else {
-            console.warn("Ledger document does not exist, awaiting creation...");
->>>>>>> parent of 68fca71 (Theme)
+            // Document doesn't exist, create it with initial state
+            updateGameState(gameState, "Initial Ledger Created");
         }
-        renderLedger();
     }, (error) => {
-<<<<<<< HEAD
-        console.error("Ledger snapshot error:", error);
-        showModal("Connection Error", "Failed to connect to the shared ledger in real-time. Please check your network.");
+        console.error("Error listening to Firestore state:", error);
+        window.alert("Failed to connect to the shared ledger. See console for details.");
     });
 }
 
-/**
- * Saves the current gameState object to Firestore.
- * @param {boolean} isInitial - True if this is the first save (use setDoc), false for updates (use updateDoc).
- */
-async function saveGameState(isInitial = false) {
-    if (!GAME_STATE_PATH) return;
-    const docRef = doc(db, GAME_STATE_PATH);
+async function updateGameState(newState, historyMessage) {
+    if (!db) return;
+    
+    // Add history entry
+    if (historyMessage) {
+        newState.history.unshift({ 
+            timestamp: new Date().toISOString(), 
+            message: historyMessage 
+        });
+        // Keep history manageable (e.g., last 25 entries)
+        newState.history = newState.history.slice(0, 25); 
+    }
+
+    // Update global state immediately
+    gameState = newState; 
+
     try {
-        if (isInitial) {
-            await setDoc(docRef, gameState);
-        } else {
-            // We use setDoc here to completely overwrite, which is simpler for the whole state object
-            await setDoc(docRef, gameState); 
-        }
-    } catch (error) {
-        console.error("Error writing document: ", error);
-        showModal("Save Error", "Failed to save ledger data. Check console for details.");
+        await setDoc(doc(db, GAME_STATE_DOC_PATH), newState);
+    } catch (e) {
+        console.error("Error writing document: ", e);
+        window.alert(`Failed to save state: ${e.message}`);
     }
 }
 
-/**
- * Renders the current gameState to the DOM.
- */
-function renderLedger() {
-    // 1. Update Scores and Names
-    document.getElementById('keeper-name').textContent = gameState.players.keeper;
-    document.getElementById('nightingale-name').textContent = gameState.players.nightingale;
-    document.getElementById('keeper-score').textContent = gameState.scores.keeper;
-    document.getElementById('nightingale-score').textContent = gameState.scores.nightingale;
+// --- Rendering Functions ---
 
-    // 2. Render Habits
-    const habitListEl = document.getElementById('habit-list');
-    habitListEl.innerHTML = '';
-    document.getElementById('habits-loading').classList.add('hidden');
+function renderState() {
+    // Render Scores and Names
+    ['keeper', 'nightingale'].forEach(key => {
+        const player = gameState.players[key];
+        const score = gameState.scores[key];
 
+        document.getElementById(`player-name-${key}`).textContent = player.name;
+        document.getElementById(`${key}-title`).textContent = `The ${player.title}`;
+        document.getElementById(`score-${key}`).textContent = score;
+    });
+
+    // Render Habits
+    const habitsList = document.getElementById('habits-list');
+    habitsList.innerHTML = '';
     if (gameState.habits.length === 0) {
-        document.getElementById('habits-loading').classList.remove('hidden');
+        habitsList.innerHTML = '<p class="text-gray-500" id="habits-loading">No habits defined yet.</p>';
     } else {
-        // Sort habits by assignee and then points (descending)
-        const sortedHabits = [...gameState.habits].sort((a, b) => {
-            if (a.assignee !== b.assignee) {
-                return a.assignee.localeCompare(b.assignee);
-            }
-            return b.points - a.points;
-        });
-
-        sortedHabits.forEach(habit => {
-            const player = gameState.players[habit.assignee] || habit.assignee;
-            const item = `
-                <div class="p-4 rounded-lg border border-theme flex justify-between items-center bg-opacity-5">
-                    <div class="flex-1">
-                        <p class="font-semibold">${habit.description}</p>
-                        <p class="text-sm text-secondary">
-                            ${habit.points} pts | ${habit.timesPerWeek}x/week | Assigned: ${player}
-                        </p>
-                    </div>
-                    <div class="flex space-x-2 ml-4">
-                        <button onclick="window.completeHabit('${habit.id}')" class="button-primary text-xs py-1 px-2">Complete</button>
-                        <button onclick="window.deleteItem('habit', '${habit.id}')" class="text-secondary hover:text-error transition duration-150">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 6h18"></path>
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            `;
-            habitListEl.insertAdjacentHTML('beforeend', item);
-        });
-    }
-
-    // 3. Render Rewards
-    const rewardListEl = document.getElementById('reward-list');
-    rewardListEl.innerHTML = '';
-    document.getElementById('rewards-loading').classList.add('hidden');
-    
-    if (gameState.rewards.length === 0) {
-        document.getElementById('rewards-loading').classList.remove('hidden');
-    } else {
-        // Sort rewards by cost (ascending)
-        const sortedRewards = [...gameState.rewards].sort((a, b) => a.cost - b.cost);
-
-        sortedRewards.forEach(reward => {
-            const item = `
-                <div class="p-4 rounded-lg border border-theme flex justify-between items-center bg-opacity-5">
-                    <div class="flex-1">
-                        <p class="font-semibold">${reward.title}</p>
-                        <p class="text-sm text-secondary">${reward.cost} pts: ${reward.description}</p>
-                    </div>
-                    <div class="flex space-x-2 ml-4">
-                        <button onclick="window.redeemReward('${reward.id}')" class="button-primary text-xs py-1 px-2 bg-green-600 hover:bg-green-500">Redeem</button>
-                        <button onclick="window.deleteItem('reward', '${reward.id}')" class="text-secondary hover:text-error transition duration-150">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 6h18"></path>
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            `;
-            rewardListEl.insertAdjacentHTML('beforeend', item);
-        });
-    }
-
-
-    // 4. Render Punishments
-    const punishmentListEl = document.getElementById('punishment-list');
-    punishmentListEl.innerHTML = '';
-    document.getElementById('punishments-loading').classList.add('hidden');
-
-    if (gameState.punishments.length === 0) {
-        document.getElementById('punishments-loading').classList.remove('hidden');
-    } else {
-        // Punishments are not sorted by any specific rule
-        [...gameState.punishments].forEach(punishment => {
-            const item = `
-                <div class="p-4 rounded-lg border border-theme flex justify-between items-center bg-opacity-5">
-                    <div class="flex-1">
-                        <p class="font-semibold">${punishment.title}</p>
-                        <p class="text-sm text-secondary">${punishment.description}</p>
-                    </div>
-                    <div class="flex space-x-2 ml-4">
-                        <button onclick="window.assignPunishment('${punishment.id}')" class="button-primary text-xs py-1 px-2 bg-yellow-600 hover:bg-yellow-500 text-black">Assign</button>
-                        <button onclick="window.deleteItem('punishment', '${punishment.id}')" class="text-secondary hover:text-error transition duration-150">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 6h18"></path>
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            `;
-            punishmentListEl.insertAdjacentHTML('beforeend', item);
-        });
-    }
-
-    // 5. Render History
-    const historyLogEl = document.getElementById('history-log');
-    historyLogEl.innerHTML = '';
-    document.getElementById('history-loading').classList.add('hidden');
-    
-    if (gameState.history.length === 0) {
-        document.getElementById('history-loading').classList.remove('hidden');
-    } else {
-        // Sort history descending by timestamp
-        const sortedHistory = [...gameState.history].sort((a, b) => b.timestamp - a.timestamp);
-
-        sortedHistory.forEach(entry => {
-            const playerName = gameState.players[entry.player] || entry.player;
-            let icon = '';
-            let colorClass = '';
-
-            switch(entry.type) {
-                case 'habit_complete':
-                    icon = '✅'; colorClass = 'text-green-400';
-                    break;
-                case 'reward_redeem':
-                    icon = '🎁'; colorClass = 'text-blue-400';
-                    break;
-                case 'punishment_assign':
-                    icon = '⚠️'; colorClass = 'text-yellow-400';
-                    break;
-                case 'player_rename':
-                    icon = '✍️'; colorClass = 'text-indigo-400';
-                    break;
-                case 'admin_add':
-                    icon = '➕'; colorClass = 'text-gray-400';
-                    break;
-                case 'admin_delete':
-                    icon = '❌'; colorClass = 'text-gray-400';
-                    break;
-                default:
-                    icon = 'ℹ️'; colorClass = 'text-gray-400';
-            }
-
-            const item = `
-                <div class="border-b border-theme pb-2">
-                    <p class="font-semibold ${colorClass}">${icon} ${entry.message}</p>
-                    <p class="text-xs text-secondary italic mt-0.5">
-                        ${playerName} - ${formatTimestamp(entry.timestamp)}
+        gameState.habits.forEach((habit, index) => {
+            const player = gameState.players[habit.assignee];
+            const name = player ? player.name : 'Unknown User';
+            
+            const habitItem = document.createElement('div');
+            habitItem.className = 'card p-4 flex items-center justify-between border-b border-[#3c3c45] transition-all hover:bg-[#2a2a2c]';
+            habitItem.innerHTML = `
+                <div>
+                    <p class="text-lg text-white font-semibold">${habit.description}</p>
+                    <p class="text-sm text-gray-400">
+                        <span class="${habit.assignee === 'keeper' ? 'text-red-400' : 'text-purple-400'}">(${habit.assignee.charAt(0).toUpperCase() + habit.assignee.slice(1)})</span>
+                        &mdash; ${name} | ${habit.points} Points | ${habit.timesPerWeek}x Week
                     </p>
                 </div>
+                <div class="flex space-x-2">
+                    <button onclick="window.completeHabit(${index})" class="glowing-btn px-3 py-1 rounded text-xs bg-green-700 border-green-500">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button onclick="window.deleteItem('habit', ${index})" class="glowing-btn px-3 py-1 rounded text-xs bg-red-700 border-red-500">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             `;
-            historyLogEl.insertAdjacentHTML('beforeend', item);
+            habitsList.appendChild(habitItem);
         });
     }
 
-    // Ensure the correct tab is displayed after a render
-    showTab(document.getElementById('rewards-panel').classList.contains('hidden') ? 'punishments' : 'rewards');
-}
-
-/**
- * Adds an entry to the history log and saves the state.
- * @param {string} type - Type of event (e.g., 'habit_complete').
- * @param {string} player - 'keeper' or 'nightingale' or 'admin'.
- * @param {string} message - The message to display.
- */
-function addHistoryEntry(type, player, message) {
-    gameState.history.push({
-        type: type,
-        player: player,
-        message: message,
-        timestamp: Date.now()
-    });
-    // Limit history size to prevent massive document size
-    if (gameState.history.length > 50) {
-        // Keep the 50 most recent entries
-        gameState.history.sort((a, b) => b.timestamp - a.timestamp);
-        gameState.history = gameState.history.slice(0, 50);
-    }
-    saveGameState();
-}
-
-
-// --- Tab and Form Toggling ---
-
-/**
- * Toggles visibility between Rewards and Punishments tabs.
- * @param {'rewards'|'punishments'} tab - The tab to show.
- */
-window.showTab = function(tab) {
-    const rewardsPanel = document.getElementById('rewards-panel');
-    const punishmentsPanel = document.getElementById('punishments-panel');
-    const rewardsButton = document.getElementById('rewards-tab-button');
-    const punishmentsButton = document.getElementById('punishments-tab-button');
-
-    // Get the dynamic color for the active tab border from a theme-dependent element (e.g., h1)
-    // The h1's color is set by the current theme's H1/H2/H3 color rule.
-    const activeColor = window.getComputedStyle(document.querySelector('h1')).color;
-
-    // Reset border color styles 
-    rewardsButton.style.borderBottomColor = 'transparent';
-    punishmentsButton.style.borderBottomColor = 'transparent';
-    
-    
-    if (tab === 'rewards') {
-        rewardsPanel.classList.remove('hidden');
-        punishmentsPanel.classList.add('hidden');
-        rewardsButton.style.borderBottomColor = activeColor;
+    // Render Rewards
+    const rewardsList = document.getElementById('rewards-list');
+    rewardsList.innerHTML = '';
+    if (gameState.rewards.length === 0) {
+        rewardsList.innerHTML = '<p class="text-gray-500 col-span-full" id="rewards-loading">No rewards defined yet.</p>';
     } else {
-        punishmentsPanel.classList.remove('hidden');
-        rewardsPanel.classList.add('hidden');
-        punishmentsButton.style.borderBottomColor = activeColor;
-=======
-        console.error("Firestore onSnapshot error:", error);
-        showModal("Data Error", "Failed to load real-time ledger data. Check console for network issues.");
-    });
+        gameState.rewards.forEach((reward, index) => {
+            const rewardItem = document.createElement('div');
+            rewardItem.className = 'card p-4 space-y-2 border-l-4 border-purple-500';
+            rewardItem.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <p class="text-xl text-purple-300 font-semibold">${reward.title}</p>
+                    <span class="text-lg text-yellow-500 font-cinzel">${reward.cost} Pts</span>
+                </div>
+                <p class="text-sm text-gray-400">${reward.description}</p>
+                <div class="flex space-x-2 pt-2">
+                    <button onclick="window.claimReward(${index})" class="glowing-btn px-3 py-1 rounded text-xs bg-green-700 border-green-500">
+                        <i class="fas fa-gift"></i> Claim
+                    </button>
+                    <button onclick="window.deleteItem('reward', ${index})" class="glowing-btn px-3 py-1 rounded text-xs bg-red-700 border-red-500">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            rewardsList.appendChild(rewardItem);
+        });
+    }
+
+    // Render Punishments
+    const punishmentsList = document.getElementById('punishments-list');
+    punishmentsList.innerHTML = '';
+    if (gameState.punishments.length === 0) {
+        punishmentsList.innerHTML = '<p class="text-gray-500 col-span-full" id="punishments-loading">No punishments defined yet.</p>';
+    } else {
+        gameState.punishments.forEach((punishment, index) => {
+            const punishmentItem = document.createElement('div');
+            punishmentItem.className = 'card p-4 space-y-2 border-l-4 border-red-500';
+            punishmentItem.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <p class="text-xl text-red-300 font-semibold">${punishment.title}</p>
+                </div>
+                <p class="text-sm text-gray-400">${punishment.description}</p>
+                <div class="flex space-x-2 pt-2">
+                    <button onclick="window.deleteItem('punishment', ${index})" class="glowing-btn px-3 py-1 rounded text-xs bg-red-700 border-red-500">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            `;
+            punishmentsList.appendChild(punishmentItem);
+        });
+    }
+
+    // Render History
+    const historyList = document.getElementById('history-list');
+    historyList.innerHTML = '';
+    if (gameState.history.length === 0) {
+        historyList.innerHTML = '<li class="text-gray-500" id="history-loading">Awaiting ledger entry...</li>';
+    } else {
+        gameState.history.forEach(item => {
+            const date = new Date(item.timestamp).toLocaleTimeString();
+            const historyItem = document.createElement('li');
+            historyItem.className = 'text-sm text-gray-400 border-b border-[#3c3c45] pb-2';
+            historyItem.innerHTML = `[${date}] ${item.message}`;
+            historyList.appendChild(historyItem);
+        });
+    }
+
+    // Ensure the correct tab is highlighted on render
+    setActiveTab(window.activeTab || 'habits');
 }
 
-// --- Data Persistence ---
-
-async function updateGameState(updates) {
-    if (!db || !GAME_STATE_PATH) {
-        console.error("Database not initialized.");
-        showModal("Error", "Database connection not ready. Please wait.");
-        return false;
-    }
-    try {
-        const docRef = doc(db, GAME_STATE_PATH);
-        await updateDoc(docRef, updates);
-        return true;
-    } catch (e) {
-        console.error("Error updating ledger state:", e);
-        showModal("Error", "Failed to update the ledger. Please check console for details.");
-        return false;
-    }
-}
-
-// --- Theme and Profile Management ---
+// --- Editing User Data ---
 
 /**
- * Applies the selected theme color to the entire application via CSS variable.
- * @param {string} colorHex - The hex code for the accent color.
+ * Allows the user to edit their display name.
+ * @param {('keeper'|'nightingale')} playerKey 
  */
-function applyTheme(colorHex) {
-    document.documentElement.style.setProperty('--accent-color', colorHex);
-    // Also update the default text color for the profile modal label elements
-    const keeperLabel = document.getElementById('keeper-name-label');
-    if(keeperLabel) keeperLabel.style.color = colorHex;
-    const nightingaleLabel = document.getElementById('nightingale-name-label');
-    if(nightingaleLabel) nightingaleLabel.style.color = colorHex;
-}
+window.editPlayerName = async function(playerKey) {
+    const currentName = gameState.players[playerKey].name;
+    const newName = await showModal(
+        `Edit ${gameState.players[playerKey].title} Name`, 
+        `Enter the new name for The ${gameState.players[playerKey].title}:`, 
+        true, // isPrompt
+        currentName
+    );
 
-window.openProfileModal = function() {
-    const overlay = document.getElementById('profile-modal-overlay');
-    if (overlay) {
-        // Load current names into inputs
-        document.getElementById('keeper-name-input').value = gameState.playerNames.keeper;
-        document.getElementById('nightingale-name-input').value = gameState.playerNames.nightingale;
-        
-        // Select current theme color radio
-        const currentThemeColor = gameState.themeColor;
-        const radio = document.querySelector(`input[name="theme-color"][value="${currentThemeColor}"]`);
-        if (radio) radio.checked = true;
-
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
+    if (newName && newName.trim() && newName !== currentName) {
+        const newState = JSON.parse(JSON.stringify(gameState));
+        newState.players[playerKey].name = newName.trim();
+        const historyMessage = `${currentName}'s name updated to ${newName.trim()}.`;
+        updateGameState(newState, historyMessage);
     }
 }
-
-window.closeProfileModal = function() {
-    const overlay = document.getElementById('profile-modal-overlay');
-    if (overlay) {
-        overlay.classList.add('hidden');
-        overlay.classList.remove('flex');
-    }
-}
-
-window.saveProfileSettings = async function() {
-    const newKeeperName = document.getElementById('keeper-name-input').value.trim();
-    const newNightingaleName = document.getElementById('nightingale-name-input').value.trim();
-    const selectedColor = document.querySelector('input[name="theme-color"]:checked')?.value || gameState.themeColor;
-
-    if (!newKeeperName || !newNightingaleName) {
-        showModal("Invalid Names", "Player names cannot be empty.");
-        return;
-    }
-
-    const updates = {
-        playerNames: {
-            keeper: newKeeperName,
-            nightingale: newNightingaleName
-        },
-        themeColor: selectedColor
-    };
-
-    const success = await updateGameState(updates);
-    if (success) {
-        window.closeProfileModal();
-        showModal("Success", "Settings saved and applied!");
-    }
-}
-
-// --- Core Logic & Rendering ---
 
 /**
- * Renders the entire ledger state to the UI.
- * This is called whenever the Firestore data changes.
+ * Allows the user to edit the role title (e.g., Keeper, Nightingale).
+ * @param {('keeper'|'nightingale')} playerKey 
  */
-function renderLedger() {
-    // 1. Update Names and Scores
-    const keeperName = gameState.playerNames.keeper;
-    const nightingaleName = gameState.playerNames.nightingale;
-    
-    const keeperScoreEl = document.getElementById('keeper-score');
-    if(keeperScoreEl) keeperScoreEl.textContent = gameState.scores.keeper;
-    
-    const nightingaleScoreEl = document.getElementById('nightingale-score');
-    if(nightingaleScoreEl) nightingaleScoreEl.textContent = gameState.scores.nightingale;
-    
-    const keeperNameDisplay = document.getElementById('keeper-name-display');
-    if(keeperNameDisplay) keeperNameDisplay.textContent = keeperName;
-    
-    const nightingaleNameDisplay = document.getElementById('nightingale-name-display');
-    if(nightingaleNameDisplay) nightingaleNameDisplay.textContent = nightingaleName;
-    
-    // Update Habit form options
-    const habitAssigneeSelect = document.getElementById('new-habit-assignee');
-    if (habitAssigneeSelect) {
-        habitAssigneeSelect.options[0].text = keeperName;
-        habitAssigneeSelect.options[1].text = nightingaleName;
-    }
+window.editPlayerTitle = async function(playerKey) {
+    const currentTitle = gameState.players[playerKey].title;
+    const newTitle = await showModal(
+        `Edit ${currentTitle} Title`, 
+        `Enter the new title for this role (e.g., 'Guardian', 'Muse'):`, 
+        true, // isPrompt
+        currentTitle
+    );
 
-    // 2. Render Habits
-    const habitsListEl = document.getElementById('habits-list');
-    const habitsLoadingEl = document.getElementById('habits-loading');
-    
-    if (habitsListEl) {
-        habitsListEl.innerHTML = ''; // Clear existing list
-        if (gameState.habits && gameState.habits.length > 0) {
-            gameState.habits.forEach((habit, index) => {
-                const assigneeName = gameState.playerNames[habit.assignee] || habit.assignee;
-                const li = document.createElement('li');
-                li.className = 'card p-3 rounded-lg flex justify-between items-center text-sm';
-                li.innerHTML = `
-                    <div>
-                        <p class="font-bold">${habit.description}</p>
-                        <p class="text-xs text-gray-500">Assignee: ${assigneeName} | Value: ${habit.points} pts | Daily Limit: ${habit.times}</p>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button onclick="window.completeHabit(${index})" class="btn-primary px-3 py-1 text-xs rounded-lg transition transform hover:scale-105">Done</button>
-                        <button onclick="window.removeHabit(${index})" class="text-gray-500 hover:text-red-500 transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                    </div>
-                `;
-                habitsListEl.appendChild(li);
-            });
-            if(habitsLoadingEl) habitsLoadingEl.classList.add('hidden');
-        } else {
-            if(habitsLoadingEl) habitsLoadingEl.classList.remove('hidden');
-        }
-    }
-
-    // 3. Render Rewards
-    const rewardsListEl = document.getElementById('rewards-list');
-    const rewardsLoadingEl = document.getElementById('rewards-loading');
-
-    if (rewardsListEl) {
-        rewardsListEl.innerHTML = '';
-        const nightingaleScore = gameState.scores.nightingale;
-        
-        if (gameState.rewards && gameState.rewards.length > 0) {
-            gameState.rewards.forEach((reward, index) => {
-                const canAfford = nightingaleScore >= reward.cost;
-                const btnClass = canAfford ? 'btn-primary' : 'bg-gray-700 text-gray-500 cursor-not-allowed';
-                const redeemBtn = `<button onclick="window.redeemReward(${index})" class="${btnClass} px-3 py-1 text-xs rounded-lg transition transform hover:scale-105 whitespace-nowrap" ${canAfford ? '' : 'disabled'}>Redeem</button>`;
-
-                const li = document.createElement('li');
-                li.className = 'card p-3 rounded-lg text-sm';
-                li.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="font-bold">${reward.title} <span class="text-xs ml-2" style="color: var(--accent-color)">(${reward.cost} pts)</span></p>
-                            <p class="text-xs text-gray-400 mt-1">${reward.description}</p>
-                        </div>
-                        <div class="flex space-x-2 mt-1">
-                            ${redeemBtn}
-                            <button onclick="window.removeReward(${index})" class="text-gray-500 hover:text-red-500 transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                rewardsListEl.appendChild(li);
-            });
-            if(rewardsLoadingEl) rewardsLoadingEl.classList.add('hidden');
-        } else {
-            if(rewardsLoadingEl) rewardsLoadingEl.classList.remove('hidden');
-        }
-    }
-
-    // 4. Render Punishments
-    const punishmentsListEl = document.getElementById('punishments-list');
-    const punishmentsLoadingEl = document.getElementById('punishments-loading');
-    
-    if (punishmentsListEl) {
-        punishmentsListEl.innerHTML = '';
-        if (gameState.punishments && gameState.punishments.length > 0) {
-            gameState.punishments.forEach((punishment, index) => {
-                const li = document.createElement('li');
-                li.className = 'card p-3 rounded-lg text-sm';
-                li.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="font-bold text-[#ff6b6b]">${punishment.title}</p>
-                            <p class="text-xs text-gray-400 mt-1">${punishment.description}</p>
-                        </div>
-                        <div class="flex space-x-2 mt-1">
-                            <button onclick="window.applyPunishment(${index})" class="btn-secondary px-3 py-1 text-xs rounded-lg bg-red-800 transition transform hover:scale-105 whitespace-nowrap">Apply</button>
-                            <button onclick="window.removePunishment(${index})" class="text-gray-500 hover:text-red-500 transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                punishmentsListEl.appendChild(li);
-            });
-            if(punishmentsLoadingEl) punishmentsLoadingEl.classList.add('hidden');
-        } else {
-            if(punishmentsLoadingEl) punishmentsLoadingEl.classList.remove('hidden');
-        }
-    }
-
-    // 5. Render History Log (This is where the previous fix was applied)
-    const historyListEl = document.getElementById('history-list');
-    const historyLoadingEl = document.getElementById('history-loading');
-    
-    if (historyListEl) {
-        historyListEl.innerHTML = '';
-        if (gameState.history && gameState.history.length > 0) {
-            // Render history in reverse chronological order
-            [...gameState.history].reverse().forEach(item => {
-                const li = document.createElement('li');
-                const date = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                let colorClass = '';
-                
-                if (item.type === 'habit_complete') colorClass = 'text-green-400';
-                else if (item.type === 'reward_redeem') colorClass = 'text-yellow-400';
-                else if (item.type === 'punishment_apply') colorClass = 'text-red-400';
-                else colorClass = 'text-gray-400';
-
-                li.className = 'border-b border-[#3c3c45] py-2 last:border-b-0';
-                li.innerHTML = `<span class="text-xs text-gray-500 mr-2">${date}</span><span class="${colorClass}">${item.description}</span>`;
-                historyListEl.appendChild(li);
-            });
-            if(historyLoadingEl) historyLoadingEl.classList.add('hidden');
-        } else {
-            if(historyLoadingEl) historyLoadingEl.classList.remove('hidden');
-        }
->>>>>>> parent of 68fca71 (Theme)
+    if (newTitle && newTitle.trim() && newTitle !== currentTitle) {
+        const newState = JSON.parse(JSON.stringify(gameState));
+        // Capitalize the new title for display consistency
+        const formattedTitle = newTitle.trim().charAt(0).toUpperCase() + newTitle.trim().slice(1);
+        newState.players[playerKey].title = formattedTitle;
+        const historyMessage = `${currentTitle} title updated to ${formattedTitle}.`;
+        updateGameState(newState, historyMessage);
     }
 }
 
 
-<<<<<<< HEAD
-/** Toggles visibility of the Habit creation form. */
-window.toggleHabitForm = function() {
-    document.getElementById('habit-form').classList.toggle('hidden');
-}
+// --- Habit, Reward, Punishment CRUD ---
 
-/** Toggles visibility of the Reward creation form. */
-window.toggleRewardForm = function() {
-    document.getElementById('reward-form').classList.toggle('hidden');
-}
-
-/** Toggles visibility of the Punishment creation form. */
-window.togglePunishmentForm = function() {
-    document.getElementById('punishment-form').classList.toggle('hidden');
-}
-
-/** Shows the rename players modal. */
-window.showRenameModal = function() {
-    document.getElementById('new-keeper-name').value = gameState.players.keeper;
-    document.getElementById('new-nightingale-name').value = gameState.players.nightingale;
-    document.getElementById('rename-modal').classList.remove('hidden');
-}
-
-/** Hides the rename players modal. */
-window.hideRenameModal = function() {
-    document.getElementById('rename-modal').classList.add('hidden');
-}
-
-
-// --- Action Handlers ---
-
-/**
- * Saves a new habit to the ledger.
- */
-window.saveNewHabit = function() {
+window.addNewHabit = function() {
     const desc = document.getElementById('new-habit-desc').value.trim();
-=======
-// --- Action Functions (Bound to window for HTML access) ---
-
-window.toggleHabitForm = function() {
-    const form = document.getElementById('habit-form');
-    if (form) form.classList.toggle('hidden');
-}
-
-window.toggleRewardForm = function() {
-    const form = document.getElementById('reward-form');
-    if (form) form.classList.toggle('hidden');
-}
-
-window.togglePunishmentForm = function() {
-    const form = document.getElementById('punishment-form');
-    if (form) form.classList.toggle('hidden');
-}
-
-window.addHistoryEntry = async function(description, type, points = 0) {
-    const historyEntry = {
-        description,
-        type,
-        points,
-        timestamp: Date.now()
-    };
-
-    return updateGameState({
-        history: arrayUnion(historyEntry)
-    });
-}
-
-window.addHabit = async function() {
-    const description = document.getElementById('new-habit-desc').value;
->>>>>>> parent of 68fca71 (Theme)
-    const points = parseInt(document.getElementById('new-habit-points').value);
-    const times = parseInt(document.getElementById('new-habit-times').value);
+    const points = parseInt(document.getElementById('new-habit-points').value, 10);
+    const times = parseInt(document.getElementById('new-habit-times').value, 10);
     const assignee = document.getElementById('new-habit-assignee').value;
 
-<<<<<<< HEAD
-    if (!desc || isNaN(points) || points <= 0 || isNaN(times) || times <= 0) {
-        showModal("Invalid Input", "Please provide a valid description, positive points, and times per week.");
+    if (!desc || isNaN(points) || points < 1 || isNaN(times) || times < 1 || times > 7 || !assignee) {
+        window.alert("Please fill out all habit fields correctly (Points/Times must be valid numbers).");
         return;
     }
 
-    gameState.habits.push({
-        id: generateId(),
+    const newState = JSON.parse(JSON.stringify(gameState));
+    newState.habits.push({
         description: desc,
         points: points,
         timesPerWeek: times,
         assignee: assignee,
-        // Optional: tracked progress could go here, but keeping it simple for now
+        // Optional: add a completion tracking field here later if needed
     });
 
-    addHistoryEntry('admin_add', 'admin', `New Habit added: ${desc} for ${points} points.`);
-    toggleHabitForm();
     // Clear form
     document.getElementById('new-habit-desc').value = '';
-    document.getElementById('new-habit-points').value = '10';
-    document.getElementById('new-habit-times').value = '1';
+    document.getElementById('new-habit-points').value = '';
+    document.getElementById('new-habit-times').value = '';
+    document.getElementById('new-habit-assignee').value = '';
+
+    const title = newState.players[assignee].title;
+    const historyMessage = `New Habit added for The ${title}: "${desc}" (${points} Pts).`;
+    updateGameState(newState, historyMessage);
+    window.toggleHabitForm(false);
 }
 
-/**
- * Saves a new reward to the ledger.
- */
-window.saveNewReward = function() {
+window.addNewReward = function() {
     const title = document.getElementById('new-reward-title').value.trim();
-    const cost = parseInt(document.getElementById('new-reward-cost').value);
+    const cost = parseInt(document.getElementById('new-reward-cost').value, 10);
     const desc = document.getElementById('new-reward-desc').value.trim();
 
-    if (!title || !desc || isNaN(cost) || cost <= 0) {
-        showModal("Invalid Input", "Please provide a valid title, description, and positive cost.");
+    if (!title || isNaN(cost) || cost < 1 || !desc) {
+        window.alert("Please fill out all reward fields correctly (Cost must be a valid number).");
         return;
     }
 
-    gameState.rewards.push({
-        id: generateId(),
+    const newState = JSON.parse(JSON.stringify(gameState));
+    newState.rewards.push({
         title: title,
         cost: cost,
         description: desc,
     });
 
-    addHistoryEntry('admin_add', 'admin', `New Reward added: ${title} costing ${cost} points.`);
-    toggleRewardForm();
     // Clear form
     document.getElementById('new-reward-title').value = '';
-    document.getElementById('new-reward-cost').value = '100';
+    document.getElementById('new-reward-cost').value = '';
     document.getElementById('new-reward-desc').value = '';
+
+    const historyMessage = `New Reward cataloged: "${title}" (${cost} Pts).`;
+    updateGameState(newState, historyMessage);
+    window.toggleRewardForm(false);
 }
 
-/**
- * Saves a new punishment to the ledger.
- */
-window.saveNewPunishment = function() {
+window.addNewPunishment = function() {
     const title = document.getElementById('new-punishment-title').value.trim();
     const desc = document.getElementById('new-punishment-desc').value.trim();
 
     if (!title || !desc) {
-        showModal("Invalid Input", "Please provide a valid title and description for the punishment.");
+        window.alert("Please fill out all punishment fields.");
         return;
     }
 
-    gameState.punishments.push({
-        id: generateId(),
+    const newState = JSON.parse(JSON.stringify(gameState));
+    newState.punishments.push({
         title: title,
         description: desc,
     });
 
-    addHistoryEntry('admin_add', 'admin', `New Punishment added: ${title}.`);
-    togglePunishmentForm();
     // Clear form
     document.getElementById('new-punishment-title').value = '';
     document.getElementById('new-punishment-desc').value = '';
+
+    const historyMessage = `New Punishment cataloged: "${title}".`;
+    updateGameState(newState, historyMessage);
+    window.togglePunishmentForm(false);
 }
 
-/**
- * Marks a habit as complete, updates the score, and logs the action.
- * @param {string} habitId 
- */
-window.completeHabit = function(habitId) {
-    const habitIndex = gameState.habits.findIndex(h => h.id === habitId);
-
-    if (habitIndex === -1) {
-        showModal("Error", "Habit not found.");
-        return;
-    }
-
-    const habit = gameState.habits[habitIndex];
-    
-    // Update score
-    gameState.scores[habit.assignee] += habit.points;
-    
-    // Log history
-    const playerName = gameState.players[habit.assignee];
-    addHistoryEntry('habit_complete', habit.assignee, `${playerName} completed '${habit.description}' for ${habit.points} points.`);
-    
-    // Save state (render is called via snapshot listener)
-    saveGameState();
-}
-
-/**
- * Redeems a reward, deducts the cost from the score, and logs the action.
- * @param {string} rewardId 
- */
-window.redeemReward = function(rewardId) {
-    const reward = gameState.rewards.find(r => r.id === rewardId);
-
-    if (!reward) {
-        showModal("Error", "Reward not found.");
-        return;
-    }
-    
-    // Prompt for who is redeeming the reward
-    const redeemingPlayer = prompt(`Who is redeeming the reward "${reward.title}" (Cost: ${reward.cost} pts)?\n\nPlease enter the player's name (e.g., ${gameState.players.keeper} or ${gameState.players.nightingale}):`);
-    
-    if (redeemingPlayer === null) return;
-
-    let redeemingRole = null;
-    let payingRole = null;
-
-    if (redeemingPlayer.toLowerCase() === gameState.players.keeper.toLowerCase()) {
-        redeemingRole = 'keeper';
-        payingRole = 'nightingale';
-    } else if (redeemingPlayer.toLowerCase() === gameState.players.nightingale.toLowerCase()) {
-        redeemingRole = 'nightingale';
-        payingRole = 'keeper';
-    } else {
-        showModal("Invalid Input", "Please enter a valid player name (Keeper or Nightingale's name).");
-        return;
-    }
-
-    if (gameState.scores[payingRole] < reward.cost) {
-        showModal("Insufficient Points", `${gameState.players[payingRole]} only has ${gameState.scores[payingRole]} points, but the reward costs ${reward.cost}.`);
-        return;
-    }
-
-    // Deduct score
-    gameState.scores[payingRole] -= reward.cost;
-
-    // Log history
-    addHistoryEntry('reward_redeem', redeemingRole, `${gameState.players[redeemingRole]} redeemed '${reward.title}'. ${gameState.players[payingRole]}'s score was deducted by ${reward.cost} points.`);
-    
-    saveGameState();
-}
-
-
-/**
- * Assigns a punishment, deducts a penalty, and logs the action.
- * @param {string} punishmentId 
- */
-window.assignPunishment = function(punishmentId) {
-    const punishment = gameState.punishments.find(p => p.id === punishmentId);
-
-    if (!punishment) {
-        showModal("Error", "Punishment not found.");
-        return;
-    }
-    
-    // Prompt for who is receiving the punishment
-    const receivingPlayer = prompt(`Who is RECEIVING this punishment: "${punishment.title}"?\n\nPlease enter the player's name (e.g., ${gameState.players.keeper} or ${gameState.players.nightingale}):`);
-    
-    if (receivingPlayer === null) return;
-
-    let receivingRole = null;
-    
-    if (receivingPlayer.toLowerCase() === gameState.players.keeper.toLowerCase()) {
-        receivingRole = 'keeper';
-    } else if (receivingPlayer.toLowerCase() === gameState.players.nightingale.toLowerCase()) {
-        receivingRole = 'nightingale';
-    } else {
-        showModal("Invalid Input", "Please enter a valid player name (Keeper or Nightingale's name).");
-        return;
-    }
-
-    // Log history
-    addHistoryEntry('punishment_assign', 'admin', `${gameState.players[receivingRole]} was assigned punishment: '${punishment.title}'.`);
-    
-    saveGameState();
-}
-
-/**
- * Deletes a habit, reward, or punishment item.
- * @param {'habit'|'reward'|'punishment'} type 
- * @param {string} itemId 
- */
-window.deleteItem = function(type, itemId) {
-    const collection = gameState[`${type}s`];
-    const itemIndex = collection.findIndex(item => item.id === itemId);
-
-    if (itemIndex === -1) {
-        showModal("Error", `${type} not found.`);
-        return;
-    }
-    
-    const itemName = collection[itemIndex].description || collection[itemIndex].title;
-
-    // Remove item
-    collection.splice(itemIndex, 1);
-    
-    // Log history
-    addHistoryEntry('admin_delete', 'admin', `${type.charAt(0).toUpperCase() + type.slice(1)} deleted: ${itemName}.`);
-
-    saveGameState();
-}
-
-
-/**
- * Saves the new player names and updates the state.
- */
-window.saveNewNames = function() {
-    const newKeeper = document.getElementById('new-keeper-name').value.trim();
-    const newNightingale = document.getElementById('new-nightingale-name').value.trim();
-
-    if (!newKeeper || !newNightingale) {
-        showModal("Invalid Input", "Both player names must be provided.");
-        return;
-    }
-
-    const oldKeeper = gameState.players.keeper;
-    const oldNightingale = gameState.players.nightingale;
-
-    gameState.players.keeper = newKeeper;
-    gameState.players.nightingale = newNightingale;
-
-    addHistoryEntry('player_rename', 'admin', `Names updated: ${oldKeeper} -> ${newKeeper} and ${oldNightingale} -> ${newNightingale}.`);
-    
-    hideRenameModal();
-    saveGameState();
-}
-
-
-/**
- * Populates a form with an example item from the EXAMPLE_DATABASE.
- * @param {'habit'|'reward'|'punishment'} type - The type of item to generate.
- */
-window.populateExample = function(type) {
-    if (typeof EXAMPLE_DATABASE === 'undefined') {
-        showModal("Error", "Example database not loaded. Cannot generate example.");
-        return;
-    }
-
-    const examples = EXAMPLE_DATABASE[`${type}s`];
-    if (!examples || examples.length === 0) {
-        showModal("Error", "No examples available for this item type.");
-        return;
-    }
-
-    // Pick a random example
-    const example = examples[Math.floor(Math.random() * examples.length)];
+window.deleteItem = function(type, index) {
+    const newState = JSON.parse(JSON.stringify(gameState));
+    let historyMessage = '';
 
     if (type === 'habit') {
-        document.getElementById('new-habit-desc').value = example.description;
-        document.getElementById('new-habit-points').value = example.points;
-        document.getElementById('new-habit-times').value = 1; // Default to 1
-        document.getElementById('new-habit-assignee').value = example.type;
-        // Check if form is hidden, show it
-        if (document.getElementById('habit-form').classList.contains('hidden')) { window.toggleHabitForm(); }
+        const habit = newState.habits.splice(index, 1)[0];
+        historyMessage = `Habit removed: "${habit.description}".`;
     } else if (type === 'reward') {
-        document.getElementById('new-reward-title').value = example.title;
-        document.getElementById('new-reward-cost').value = example.cost;
-        document.getElementById('new-reward-desc').value = example.description;
-        // Check if form is hidden, show it
-        if (document.getElementById('reward-form').classList.contains('hidden')) { window.toggleRewardForm(); }
+        const reward = newState.rewards.splice(index, 1)[0];
+        historyMessage = `Reward removed from catalog: "${reward.title}".`;
     } else if (type === 'punishment') {
-        document.getElementById('new-punishment-title').value = example.title;
-        document.getElementById('new-punishment-desc').value = example.description;
-        // Check if form is hidden, show it
-        if (document.getElementById('punishment-form').classList.contains('hidden')) { window.togglePunishmentForm(); }
+        const punishment = newState.punishments.splice(index, 1)[0];
+        historyMessage = `Punishment removed: "${punishment.title}".`;
     }
+
+    updateGameState(newState, historyMessage);
 }
 
-=======
-    if (!description || isNaN(points) || points <= 0 || isNaN(times) || times <= 0) {
-        showModal("Invalid Input", "Please provide a valid description, positive points, and a daily limit.");
-        return;
-    }
+// --- Game/Scoring Logic ---
 
-    const newHabit = {
-        id: crypto.randomUUID(), // Unique ID for tracking
-        description,
-        points,
-        times,
-        assignee // 'keeper' or 'nightingale'
-    };
-
-    const success = await updateGameState({
-        habits: arrayUnion(newHabit)
-    });
-
-    if (success) {
-        document.getElementById('new-habit-desc').value = '';
-        window.toggleHabitForm(); // Hide form after adding
-    }
-}
-
-window.removeHabit = async function(index) {
+window.completeHabit = function(index) {
     const habit = gameState.habits[index];
     if (!habit) return;
+
+    const player = habit.assignee; // 'keeper' or 'nightingale'
+    const otherPlayer = player === 'keeper' ? 'nightingale' : 'keeper';
+    const points = habit.points;
+
+    const newState = JSON.parse(JSON.stringify(gameState));
+    // Reward the *other* player, as they are the one benefiting/tracking this
+    newState.scores[otherPlayer] += points; 
     
-    const confirm = await showModal("Confirm Removal", `Are you sure you want to remove the habit "${habit.description}"?`, true);
-    if (!confirm) return;
+    // History message should reflect who gained the points
+    const gainerTitle = newState.players[otherPlayer].title;
+    const assigneeTitle = newState.players[player].title;
+    const historyMessage = `The ${assigneeTitle} completed Habit: "${habit.description}". The ${gainerTitle} gained ${points} points.`;
     
-    const newHabits = gameState.habits.filter((_, i) => i !== index);
-    updateGameState({ habits: newHabits });
+    // Optionally delete or track completion (keeping simple for now: reward completion)
+    // To make it repeatable, we don't delete. If tracking is needed, this is where it goes.
+
+    updateGameState(newState, historyMessage);
 }
 
-window.completeHabit = async function(index) {
-    const habit = gameState.habits[index];
-    if (!habit) return;
-    
-    // Points are added to the habit's assigned role's score
-    const targetRole = habit.assignee;
-    const newScore = gameState.scores[targetRole] + habit.points;
-    const targetName = gameState.playerNames[targetRole];
-    
-    // Add history entry
-    const historyDesc = `${targetName} gained ${habit.points} pts for: ${habit.description}`;
-    
-    await updateGameState({
-        [`scores.${targetRole}`]: newScore
-    });
-
-    // Add history entry *after* score is updated
-    window.addHistoryEntry(historyDesc, 'habit_complete', habit.points);
-}
-
-window.addReward = async function() {
-    const title = document.getElementById('new-reward-title').value;
-    const cost = parseInt(document.getElementById('new-reward-cost').value);
-    const description = document.getElementById('new-reward-desc').value;
-
-    if (!title || !description || isNaN(cost) || cost <= 0) {
-        showModal("Invalid Input", "Please provide a title, description, and a positive point cost for the reward.");
-        return;
-    }
-
-    const newReward = {
-        id: crypto.randomUUID(),
-        title,
-        cost,
-        description
-    };
-
-    const success = await updateGameState({
-        rewards: arrayUnion(newReward)
-    });
-
-    if (success) {
-        document.getElementById('new-reward-title').value = '';
-        document.getElementById('new-reward-cost').value = '50';
-        document.getElementById('new-reward-desc').value = '';
-        window.toggleRewardForm(); // Hide form after adding
-    }
-}
-
-window.removeReward = async function(index) {
+window.claimReward = function(index) {
     const reward = gameState.rewards[index];
     if (!reward) return;
-    
-    const confirm = await showModal("Confirm Removal", `Are you sure you want to remove the reward "${reward.title}"?`, true);
-    if (!confirm) return;
-    
-    const newRewards = gameState.rewards.filter((_, i) => i !== index);
-    updateGameState({ rewards: newRewards });
-}
 
-window.redeemReward = async function(index) {
-    const reward = gameState.rewards[index];
-    if (!reward) return;
-    
-    // Nightingale is the dedicated point consumer role
-    const playerToDebit = 'nightingale';
-    const playerToDebitName = gameState.playerNames[playerToDebit];
+    // This prompt asks the user who is claiming it and who is fulfilling it.
+    showModal("Claim Reward", "Which player is claiming this reward?", true, 'keeper/nightingale').then(claimerInput => {
+        if (!claimerInput) return;
+        
+        const claimerKey = claimerInput.toLowerCase().trim();
+        if (claimerKey !== 'keeper' && claimerKey !== 'nightingale') {
+            window.alert("Invalid player name. Must be 'keeper' or 'nightingale'.");
+            return;
+        }
 
-    if (gameState.scores[playerToDebit] < reward.cost) {
-        showModal("Insufficient Points", `${playerToDebitName} only has ${gameState.scores[playerToDebit]} points, but this reward costs ${reward.cost} points.`);
-        return;
-    }
+        const cost = reward.cost;
+        const currentScore = gameState.scores[claimerKey];
 
-    const confirm = await showModal("Redeem Reward", `Are you sure the ${playerToDebitName} wants to redeem "${reward.title}" for ${reward.cost} points?`, true);
-    if (!confirm) return;
+        if (currentScore < cost) {
+            window.alert(`The ${gameState.players[claimerKey].title} does not have enough points (Needed: ${cost}, Current: ${currentScore}).`);
+            return;
+        }
 
-    const newScore = gameState.scores[playerToDebit] - reward.cost;
+        const newState = JSON.parse(JSON.stringify(gameState));
+        newState.scores[claimerKey] -= cost;
 
-    // Add history entry
-    const historyDesc = `${playerToDebitName} redeemed "${reward.title}" for ${reward.cost} pts.`;
+        // Optionally remove the reward from the list if it's a one-time reward
+        // newState.rewards.splice(index, 1);
 
-    await updateGameState({
-        [`scores.${playerToDebit}`]: newScore
+        const claimerTitle = newState.players[claimerKey].title;
+        const historyMessage = `The ${claimerTitle} claimed Reward: "${reward.title}" for ${cost} points.`;
+        
+        updateGameState(newState, historyMessage);
     });
-    
-    // Add history entry *after* score is updated
-    window.addHistoryEntry(historyDesc, 'reward_redeem', -reward.cost);
 }
 
-window.addPunishment = async function() {
-    const title = document.getElementById('new-punishment-title').value;
-    const description = document.getElementById('new-punishment-desc').value;
+// --- UI / Example Functions ---
 
-    if (!title || !description) {
-        showModal("Invalid Input", "Please provide a title and a description for the punishment.");
-        return;
-    }
+window.activeTab = 'habits';
 
-    const newPunishment = {
-        id: crypto.randomUUID(),
-        title,
-        description
-    };
-
-    const success = await updateGameState({
-        punishments: arrayUnion(newPunishment)
+window.setActiveTab = function(tabName) {
+    window.activeTab = tabName;
+    document.querySelectorAll('[id^="content-"]').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('[id^="tab-"]').forEach(el => {
+        el.classList.remove('border-red-500', 'border-purple-500', 'text-white');
+        el.classList.add('border-transparent', 'text-gray-400');
     });
 
-    if (success) {
-        document.getElementById('new-punishment-title').value = '';
-        document.getElementById('new-punishment-desc').value = '';
-        window.togglePunishmentForm(); // Hide form after adding
+    document.getElementById(`content-${tabName}`).classList.remove('hidden');
+    const tabBtn = document.getElementById(`tab-${tabName}`);
+    tabBtn.classList.remove('border-transparent', 'text-gray-400');
+    
+    // Highlight based on content type
+    if (tabName === 'habits' || tabName === 'punishments') {
+        tabBtn.classList.add('border-red-500', 'text-white');
+    } else if (tabName === 'rewards') {
+        tabBtn.classList.add('border-purple-500', 'text-white');
     }
 }
 
-window.removePunishment = async function(index) {
-    const punishment = gameState.punishments[index];
-    if (!punishment) return;
+window.toggleHabitForm = function(forceShow = null) {
+    const form = document.getElementById('habit-form');
+    const isHidden = form.classList.contains('hidden');
     
-    const confirm = await showModal("Confirm Removal", `Are you sure you want to remove the punishment "${punishment.title}"?`, true);
-    if (!confirm) return;
-
-    const newPunishments = gameState.punishments.filter((_, i) => i !== index);
-    updateGameState({ punishments: newPunishments });
+    if (forceShow === true || (forceShow === null && isHidden)) {
+        form.classList.remove('hidden');
+    } else {
+        form.classList.add('hidden');
+    }
 }
 
-window.applyPunishment = async function(index) {
-    const punishment = gameState.punishments[index];
-    if (!punishment) return;
+window.toggleRewardForm = function(forceShow = null) {
+    const form = document.getElementById('reward-form');
+    const isHidden = form.classList.contains('hidden');
     
-    const confirm = await showModal("Apply Punishment", `Are you sure you want to confirm applying the punishment: "${punishment.title}"?`, true);
-    if (!confirm) return;
-
-    // Add history entry (Punishments don't affect score by default, but are logged)
-    const historyDesc = `Punishment applied: "${punishment.title}". Description: ${punishment.description}`;
-    
-    window.addHistoryEntry(historyDesc, 'punishment_apply', 0);
+    if (forceShow === true || (forceShow === null && isHidden)) {
+        form.classList.remove('hidden');
+    } else {
+        form.classList.add('hidden');
+    }
 }
 
-// Global functions for generating example data (accessing the EXAMPLE_DATABASE)
-window.generateExampleData = function(type) {
-    if (typeof EXAMPLE_DATABASE === 'undefined') {
-        showModal("Data Error", "Example data database is missing (examples.js).");
+window.togglePunishmentForm = function(forceShow = null) {
+    const form = document.getElementById('punishment-form');
+    const isHidden = form.classList.contains('hidden');
+    
+    if (forceShow === true || (forceShow === null && isHidden)) {
+        form.classList.remove('hidden');
+    } else {
+        form.classList.add('hidden');
+    }
+}
+
+/**
+ * Fills the Add New Habit form with random example data.
+ * @param {('keeper'|'nightingale')} type - The role to assign the example to.
+ */
+window.fillHabitForm = function(type) {
+    if (!window.EXAMPLE_DATABASE) {
+        window.alert("Example database not loaded.");
         return;
     }
+    const examples = EXAMPLE_DATABASE.habits.filter(h => h.type === type);
+    if (examples.length === 0) return;
 
-    const examples = EXAMPLE_DATABASE[`${type}s`];
-    if (!examples || examples.length === 0) return;
+    const example = examples[Math.floor(Math.random() * examples.length)];
+    
+    document.getElementById('new-habit-desc').value = example.description;
+    document.getElementById('new-habit-points').value = example.points;
+    document.getElementById('new-habit-times').value = 1; // Default to 1
+    document.getElementById('new-habit-assignee').value = example.type;
+    
+    // Check if form is hidden, show it
+    if (document.getElementById('habit-form').classList.contains('hidden')) { window.toggleHabitForm(true); }
+}
 
-    // Select a random example
+/**
+ * Fills the Add New Reward form with random example data.
+ */
+window.fillRewardForm = function() {
+    if (!window.EXAMPLE_DATABASE) {
+        window.alert("Example database not loaded.");
+        return;
+    }
+    const examples = EXAMPLE_DATABASE.rewards;
+    if (examples.length === 0) return;
+
     const example = examples[Math.floor(Math.random() * examples.length)];
 
-    if (type === 'habit') {
-        const descEl = document.getElementById('new-habit-desc');
-        const pointsEl = document.getElementById('new-habit-points');
-        const timesEl = document.getElementById('new-habit-times');
-        const assigneeEl = document.getElementById('new-habit-assignee');
-        const formEl = document.getElementById('habit-form');
-
-        if (descEl) descEl.value = example.description;
-        if (pointsEl) pointsEl.value = example.points;
-        if (timesEl) timesEl.value = 1; // Default to 1
-        if (assigneeEl) assigneeEl.value = example.type;
-        
-        // Check if form is hidden, show it
-        if (formEl && formEl.classList.contains('hidden')) { window.toggleHabitForm(); }
-        
-    } else if (type === 'reward') {
-        const titleEl = document.getElementById('new-reward-title');
-        const costEl = document.getElementById('new-reward-cost');
-        const descEl = document.getElementById('new-reward-desc');
-        const formEl = document.getElementById('reward-form');
-
-        if (titleEl) titleEl.value = example.title;
-        if (costEl) costEl.value = example.cost;
-        if (descEl) descEl.value = example.description;
-        
-        // Check if form is hidden, show it
-        if (formEl && formEl.classList.contains('hidden')) { window.toggleRewardForm(); }
-
-    } else if (type === 'punishment') {
-        const titleEl = document.getElementById('new-punishment-title');
-        const descEl = document.getElementById('new-punishment-desc');
-        const formEl = document.getElementById('punishment-form');
-
-        if (titleEl) titleEl.value = example.title;
-        if (descEl) descEl.value = example.description;
-        
-        // Check if form is hidden, show it
-        if (formEl && formEl.classList.contains('hidden')) { window.togglePunishmentForm(); }
-    }
+    document.getElementById('new-reward-title').value = example.title;
+    document.getElementById('new-reward-cost').value = example.cost;
+    document.getElementById('new-reward-desc').value = example.description;
+    
+    // Check if form is hidden, show it
+    if (document.getElementById('reward-form').classList.contains('hidden')) { window.toggleRewardForm(true); }
 }
 
->>>>>>> parent of 68fca71 (Theme)
-// Since native window.alert is forbidden, we map it to our custom modal
-window.alert = function(message) {
-    showModal("Notice", message);
+/**
+ * Fills the Add New Punishment form with random example data.
+ */
+window.fillPunishmentForm = function() {
+    if (!window.EXAMPLE_DATABASE) {
+        window.alert("Example database not loaded.");
+        return;
+    }
+    const examples = EXAMPLE_DATABASE.punishments;
+    if (examples.length === 0) return;
+
+    const example = examples[Math.floor(Math.random() * examples.length)];
+
+    document.getElementById('new-punishment-title').value = example.title;
+    document.getElementById('new-punishment-desc').value = example.description;
+    
+    // Check if form is hidden, show it
+    if (document.getElementById('punishment-form').classList.contains('hidden')) { window.togglePunishmentForm(true); }
 }
 
 // --- Initialization ---
